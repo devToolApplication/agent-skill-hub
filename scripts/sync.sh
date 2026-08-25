@@ -28,11 +28,27 @@ if [ -d "$ROOT_DIR/codex" ]; then
     [ -f "$ROOT_DIR/codex/AGENTS.md" ] && cp -f "$ROOT_DIR/codex/AGENTS.md" "$CODEX_USER_DIR/AGENTS.md"
 fi
 
-# 3. Sync Plugins
+# 3. Sync Plugins (Superpowers & GSD)
 if [ -d "$ROOT_DIR/plugins/superpowers" ]; then
-    echo "[3/4] Syncing Plugins cache..."
+    echo "[3/4] Syncing Superpowers plugin..."
     mkdir -p "$CODEX_USER_DIR/plugins/cache/openai-api-curated/superpowers/11c74d6b"
     cp -rf "$ROOT_DIR/plugins/superpowers/"* "$CODEX_USER_DIR/plugins/cache/openai-api-curated/superpowers/11c74d6b/" 2>/dev/null || true
+fi
+
+if [ -d "$ROOT_DIR/plugins/gsd" ]; then
+    echo "[3/4] Syncing GSD engine and profiles..."
+    mkdir -p "$CLAUDE_USER_DIR" "$CODEX_USER_DIR"
+    cp -rf "$ROOT_DIR/plugins/gsd/get-shit-done" "$CLAUDE_USER_DIR/" 2>/dev/null || true
+    cp -rf "$ROOT_DIR/plugins/gsd/gsd-migration-journal" "$CLAUDE_USER_DIR/" 2>/dev/null || true
+    [ -f "$ROOT_DIR/plugins/gsd/.gsd-profile" ] && cp -f "$ROOT_DIR/plugins/gsd/.gsd-profile" "$CLAUDE_USER_DIR/.gsd-profile"
+    [ -f "$ROOT_DIR/plugins/gsd/gsd-file-manifest.json" ] && cp -f "$ROOT_DIR/plugins/gsd/gsd-file-manifest.json" "$CLAUDE_USER_DIR/gsd-file-manifest.json"
+    [ -f "$ROOT_DIR/plugins/gsd/gsd-install-state.json" ] && cp -f "$ROOT_DIR/plugins/gsd/gsd-install-state.json" "$CLAUDE_USER_DIR/gsd-install-state.json"
+
+    cp -rf "$ROOT_DIR/plugins/gsd/get-shit-done" "$CODEX_USER_DIR/" 2>/dev/null || true
+    cp -rf "$ROOT_DIR/plugins/gsd/gsd-migration-journal" "$CODEX_USER_DIR/" 2>/dev/null || true
+    [ -f "$ROOT_DIR/plugins/gsd/.gsd-profile" ] && cp -f "$ROOT_DIR/plugins/gsd/.gsd-profile" "$CODEX_USER_DIR/.gsd-profile"
+    [ -f "$ROOT_DIR/plugins/gsd/gsd-file-manifest.json" ] && cp -f "$ROOT_DIR/plugins/gsd/gsd-file-manifest.json" "$CODEX_USER_DIR/gsd-file-manifest.json"
+    [ -f "$ROOT_DIR/plugins/gsd/gsd-install-state.json" ] && cp -f "$ROOT_DIR/plugins/gsd/gsd-install-state.json" "$CODEX_USER_DIR/gsd-install-state.json"
 fi
 
 # 4. Sync MCP configurations to current workspace

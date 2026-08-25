@@ -37,12 +37,32 @@ if (Test-Path "$rootDir\codex") {
     }
 }
 
-# 3. Sync Plugins (Superpowers, etc.)
+# 3. Sync Plugins (Superpowers, GSD)
 if (Test-Path "$rootDir\plugins") {
-    Write-Host "[3/4] Syncing Plugins cache..." -ForegroundColor Yellow
-    $codexSuperPlugin = "$codexUserDir\plugins\cache\openai-api-curated\superpowers\11c74d6b"
-    if (-not (Test-Path $codexSuperPlugin)) { New-Item -ItemType Directory -Force $codexSuperPlugin | Out-Null }
-    Copy-Item -Path "$rootDir\plugins\superpowers\*" -Destination $codexSuperPlugin -Recurse -Force
+    Write-Host "[3/4] Syncing Plugins (Superpowers & GSD)..." -ForegroundColor Yellow
+    # Superpowers plugin
+    if (Test-Path "$rootDir\plugins\superpowers") {
+        $codexSuperPlugin = "$codexUserDir\plugins\cache\openai-api-curated\superpowers\11c74d6b"
+        if (-not (Test-Path $codexSuperPlugin)) { New-Item -ItemType Directory -Force $codexSuperPlugin | Out-Null }
+        Copy-Item -Path "$rootDir\plugins\superpowers\*" -Destination $codexSuperPlugin -Recurse -Force
+    }
+
+    # GSD Engine & Profiles
+    if (Test-Path "$rootDir\plugins\gsd") {
+        # Sync to Claude
+        Copy-Item -Path "$rootDir\plugins\gsd\get-shit-done" -Destination "$claudeUserDir\get-shit-done" -Recurse -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-migration-journal" -Destination "$claudeUserDir\gsd-migration-journal" -Recurse -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\.gsd-profile" -Destination "$claudeUserDir\.gsd-profile" -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-file-manifest.json" -Destination "$claudeUserDir\gsd-file-manifest.json" -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-install-state.json" -Destination "$claudeUserDir\gsd-install-state.json" -Force
+
+        # Sync to Codex
+        Copy-Item -Path "$rootDir\plugins\gsd\get-shit-done" -Destination "$codexUserDir\get-shit-done" -Recurse -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-migration-journal" -Destination "$codexUserDir\gsd-migration-journal" -Recurse -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\.gsd-profile" -Destination "$codexUserDir\.gsd-profile" -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-file-manifest.json" -Destination "$codexUserDir\gsd-file-manifest.json" -Force
+        Copy-Item -Path "$rootDir\plugins\gsd\gsd-install-state.json" -Destination "$codexUserDir\gsd-install-state.json" -Force
+    }
 }
 
 # 4. Sync MCP configurations to current workspace
