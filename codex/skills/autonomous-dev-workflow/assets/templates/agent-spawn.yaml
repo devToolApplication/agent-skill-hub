@@ -1,0 +1,33 @@
+agent_id: "<unique-id>"
+role: "<role>"
+
+# Logical routing tier. Spawned agents normally use STANDARD or CHEAP.
+# PREMIUM is reserved for the Main Orchestrator.
+model_tier: "<STANDARD|CHEAP>"
+
+# Resolved from assets/templates/model-profile.example.yaml.
+# Current mapping: STANDARD -> gpt-5.2, CHEAP -> gpt-5.2.
+model: "gpt-5.2"
+
+objective: "<bounded objective>"
+inputs:
+  - "<exact file, excerpt, diff, command, or requirement ID>"
+standards:
+  - "<applicable standard only>"
+permissions:
+  read_code: true
+  write_code: false
+  write_tests: false
+  run_tests: false
+  read_docs: true
+  write_feature_docs: false
+  write_service_docs: false
+  modify_requirements: false
+  modify_architecture: false
+  run_live_system: false
+expected_output:
+  schema: "<implementation-result|reviewer-result|research-result|live-result>"
+stop_conditions:
+  - "assignment complete"
+  - "insufficient evidence"
+  - "blocking environment failure"
