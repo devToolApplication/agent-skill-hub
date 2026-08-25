@@ -1,0 +1,21 @@
+reviewer: "<reviewer-role>"
+status: "PASS|FAIL|UNCERTAIN|BLOCKED"
+blocking_findings:
+  - id: "<finding-id>"
+    rule: "<requirement-or-project-rule-id>"
+    severity: "BLOCKER|HIGH"
+    file: "<path>"
+    evidence: "<precise evidence>"
+    issue: "<problem>"
+    expected: "<expected behavior>"
+    required_fix: "<bounded correction>"
+warnings:
+  - id: "<warning-id>"
+    rule: "<rule-id>"
+    severity: "MEDIUM|LOW"
+    issue: "<problem>"
+    suggestion: "<optional improvement>"
+verified:
+  - item: "<requirement/rule/check>"
+    status: "PASS"
+uncertainties: []
