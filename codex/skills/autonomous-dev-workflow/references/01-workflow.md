@@ -13,8 +13,12 @@ DRAFT
 → PHASE_PLANNING
 → IMPLEMENTING
 → PHASE_REVIEW
-→ INTEGRATION_VERIFY
-→ LIVE_TESTING
+→ LOCAL_INTEGRATION_VERIFY
+→ LOCAL_LIVE_TESTING
+→ READY_FOR_CD_TEST
+→ CD_TEST_DEPLOYING
+→ TEST_ENV_INTEGRATION_VERIFY
+→ TEST_ENV_LIVE_TESTING
 → UAT
 → FINAL_AUDIT
 → DONE
@@ -26,8 +30,9 @@ Failure/intermediate states:
 PLAN_FIX_REQUIRED
 IMPLEMENTATION_FIX_REQUIRED
 PHASE_FIX_REQUIRED
-INTEGRATION_FIX_REQUIRED
-LIVE_TEST_FIX_REQUIRED
+LOCAL_TEST_FIX_REQUIRED
+CD_DEPLOY_BLOCKED
+TEST_ENV_TEST_FIX_REQUIRED
 REQUIREMENT_CONFLICT
 ARCHITECTURE_DECISION_REQUIRED
 BLOCKED
@@ -44,9 +49,14 @@ BLOCKED
 - `IMPLEMENTING → PHASE_REVIEW`: every plan in phase passes mandatory task reviews.
 - `PHASE_REVIEW → PHASE_PLANNING`: phase gap found; create gap plans.
 - `PHASE_REVIEW → IMPLEMENTING`: another planned phase exists after phase gate PASS.
-- final phase PASS → `INTEGRATION_VERIFY`.
-- integration PASS → `LIVE_TESTING`.
-- live/E2E PASS → `UAT`.
+- final phase PASS → `LOCAL_INTEGRATION_VERIFY`.
+- local integration PASS → `LOCAL_LIVE_TESTING`.
+- full local live/E2E PASS → `READY_FOR_CD_TEST`.
+- only `READY_FOR_CD_TEST` may create/push the candidate revision and start CD deployment.
+- candidate pushed/CD started → `CD_TEST_DEPLOYING`.
+- successful deployment of the expected candidate revision → `TEST_ENV_INTEGRATION_VERIFY`.
+- test-environment integration PASS → `TEST_ENV_LIVE_TESTING`.
+- full test-environment live/E2E PASS → `UAT`.
 - UAT PASS → `FINAL_AUDIT`.
 - final audit PASS → `DONE`.
 
@@ -82,15 +92,55 @@ Require:
 - phase acceptance criteria PASS;
 - no unresolved phase gap.
 
+### Local validation gate
+
+Before any candidate push/CD test deployment, require:
+
+- local integration verification PASS;
+- every mandatory local live/E2E scenario PASS;
+- relevant local regression suite PASS;
+- zero unresolved BLOCKER/HIGH findings;
+- local evidence recorded;
+- no code change after the successful local gate without re-running the required local validation.
+
+If local validation fails, state becomes `LOCAL_TEST_FIX_REQUIRED` and the workflow returns through fix/review/local-validation. CD deployment is forbidden.
+
+### CD deployment gate
+
+Require:
+
+- local validation gate PASS;
+- candidate revision/commit SHA recorded;
+- only that candidate is pushed/deployed;
+- CD deployment reports success;
+- deployed revision/version matches the candidate that passed local validation.
+
+If deployment fails or deployed revision is wrong, state becomes `CD_DEPLOY_BLOCKED`.
+
+### Test-environment validation gate
+
+Require:
+
+- test-environment integration verification PASS;
+- every mandatory test-environment live/E2E scenario PASS;
+- required regression suite PASS;
+- zero unresolved BLOCKER/HIGH findings;
+- evidence references the deployed candidate revision.
+
+A test-environment failure MUST NOT be hot-fixed directly in the shared environment. Return to local reproduction/fix/review and re-run the complete required local gate before pushing a new candidate.
+
 ### Feature gate
 
 Require:
 - all phases PASS;
-- integration PASS;
-- live/E2E PASS;
+- local integration PASS;
+- local full live/E2E PASS;
+- CD test deployment PASS;
+- test-environment integration PASS;
+- test-environment full live/E2E PASS;
 - UAT PASS;
 - Grill final check PASS;
-- traceability complete;
+- traceability complete for both LOCAL and TEST_ENV where applicable;
 - current-state docs updated;
 - zero BLOCKER/HIGH findings.
 
@@ -107,6 +157,42 @@ Set `REQUIREMENT_CONFLICT`. Do not code around it. Main resolves intent, updates
 ### Architecture decision
 
 Set `ARCHITECTURE_DECISION_REQUIRED`. Code agent must not silently introduce major architecture changes. Main owns the decision and records it.
+
+### Local validation failure
+
+Set `LOCAL_TEST_FIX_REQUIRED`.
+
+Route:
+
+```text
+local failure
+→ debug/research
+→ fix plan/code
+→ task reviews
+→ local integration
+→ full required local live/E2E
+→ local gate
+```
+
+Do not push/CD while this state is unresolved.
+
+### Test-environment validation failure
+
+Set `TEST_ENV_TEST_FIX_REQUIRED`.
+
+Route:
+
+```text
+test-env failure
+→ capture deployed revision/evidence
+→ reproduce/investigate locally
+→ fix locally
+→ task reviews
+→ full required local gate PASS
+→ new candidate revision
+→ CD redeploy
+→ test-env integration/live/E2E again
+```
 
 ### Repeated failure
 
