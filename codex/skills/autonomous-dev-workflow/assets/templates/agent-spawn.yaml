@@ -9,6 +9,18 @@ model_tier: "<STANDARD|CHEAP>"
 # Current mapping: STANDARD -> gpt-5.2, CHEAP -> gpt-5.2.
 model: "gpt-5.2"
 
+# Skills are resolved from references/09-skill-routing.md before spawn.
+# Every listed required skill MUST be available and loaded by the subagent.
+required_skills:
+  - "<skill-id>"
+
+# Add only triggers relevant to this assignment.
+conditional_skills:
+  on_debug:
+    - "systematic-debugging"
+  on_review_fix:
+    - "receiving-code-review"
+
 objective: "<bounded objective>"
 inputs:
   - "<exact file, excerpt, diff, command, or requirement ID>"
@@ -30,4 +42,9 @@ expected_output:
 stop_conditions:
   - "assignment complete"
   - "insufficient evidence"
+  - "required skill unavailable"
   - "blocking environment failure"
+
+on_skill_unavailable:
+  status: "SKILL_UNAVAILABLE"
+  action: "return_to_main_without_substitution"
