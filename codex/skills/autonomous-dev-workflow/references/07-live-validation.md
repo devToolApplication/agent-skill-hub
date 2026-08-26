@@ -2,9 +2,7 @@
 
 ## Non-negotiable validation order
 
-All feature-level integration and live/E2E validation MUST pass on the developer/local machine before the candidate revision is pushed for CD deployment to the shared test environment.
-
-Canonical order:
+All feature-level integration and live/E2E validation MUST pass on the local machine before the candidate revision is pushed for CD deployment to the shared test environment.
 
 ```text
 ALL PHASES PASS
@@ -22,9 +20,63 @@ ALL PHASES PASS
 
 There is no normal path from implementation directly to CD/test-environment validation.
 
+## Skill-aware validation agents
+
+All validation assignments MUST resolve role-specific skills from `09-skill-routing.md` before spawn.
+
+### Local integration verifier
+
+```yaml
+role: local_integration_verifier
+model_tier: CHEAP | STANDARD
+required_skills:
+  - verification-before-completion
+```
+
+### Local live/E2E agent
+
+```yaml
+role: local_live_test_agent
+model_tier: CHEAP
+required_skills:
+  - verification-before-completion
+```
+
+For browser/UI scenarios, Main MUST add the installed browser/Playwright skill explicitly to `required_skills`.
+
+### Test-environment integration verifier
+
+```yaml
+role: test_env_integration_verifier
+model_tier: CHEAP | STANDARD
+required_skills:
+  - verification-before-completion
+```
+
+### Test-environment live/E2E agent
+
+```yaml
+role: test_env_live_test_agent
+model_tier: CHEAP
+required_skills:
+  - verification-before-completion
+```
+
+For browser/UI scenarios, Main MUST add the installed browser/Playwright skill explicitly.
+
+### UAT agent
+
+```yaml
+role: uat_agent
+model_tier: CHEAP
+required_skills:
+  - gsd-verify-work
+  - verification-before-completion
+```
+
 ## Stage A — Local integration verification
 
-After all phases pass, first verify feature-wide wiring on the local stack:
+After all phases pass, verify feature-wide wiring on the local stack:
 
 - cross-module/service API and event contracts;
 - persistence and migrations;
@@ -44,7 +96,7 @@ Maintain integration artifacts in `03-integration/`.
 
 Every mandatory live/E2E scenario MUST be executed locally before push/CD.
 
-Spawn specialized CHEAP live agents, preferably in parallel by independent scenario/domain:
+Main should spawn specialized CHEAP agents, preferably in parallel when scenarios are independent:
 
 - API Live Test Agent;
 - Browser/E2E Agent;
@@ -66,27 +118,28 @@ Mocks may support unit/component tests but MUST NOT replace the local feature-le
 
 ## Local gate
 
-The candidate MUST NOT be pushed/deployed to the CD test environment until all of the following are true:
+The candidate MUST NOT be pushed/deployed to the CD test environment until all are true:
 
 - local integration verification PASS;
 - every mandatory local live/E2E scenario PASS;
 - relevant regression scenarios PASS;
+- all mandatory validation agents report required `skills_used`;
 - zero unresolved BLOCKER/HIGH findings;
 - evidence is recorded;
-- the candidate working tree contains no code changes made after the successful local validation without re-running the affected/full local gate.
+- no code changes were made after successful local validation without re-running affected/full local validation.
 
 If code changes after local PASS, invalidate the local gate and run it again before push.
 
 ## Candidate revision identity
 
-After the local gate passes:
+After local gate passes:
 
-1. finalize the candidate commit;
-2. record the candidate commit SHA/version;
+1. finalize candidate commit;
+2. record candidate commit SHA/version;
 3. push that candidate;
-4. allow CD to deploy that exact candidate to the test environment.
+4. allow CD to deploy that exact candidate.
 
-Test-environment validation MUST verify the deployed revision/version matches the candidate that passed the local gate.
+Test-environment validation MUST verify deployed revision/version matches the candidate that passed local gate.
 
 ## Stage C — CD deploy to test environment
 
@@ -94,24 +147,24 @@ Only after LOCAL GATE PASS may the workflow push/deploy through CD.
 
 CD/deployment must complete successfully before test-environment live validation begins.
 
-If deployment fails, mark the CD stage failed/blocked. Do not treat a deployment failure as an application live-test PASS.
+If deployment fails, mark CD stage failed/blocked.
 
 ## Stage D — Test-environment verification
 
-After successful CD deployment, rerun the mandatory feature-level verification against the shared test environment.
+After successful CD deployment, rerun mandatory feature-level verification against shared test environment.
 
-This is not only a smoke test. Re-run the required integration and live/E2E scenarios to catch environment-specific differences such as:
+This is not only a smoke test. Re-run required integration and live/E2E scenarios to catch:
 
 - environment configuration;
 - secrets/credentials wiring;
 - ingress/routing;
 - service discovery;
 - shared database behavior;
-- real deployed migrations;
+- deployed migrations;
 - authentication/authorization integration;
 - network policies;
 - external integrations;
-- browser behavior against the deployed frontend;
+- browser behavior against deployed frontend;
 - runtime/container/Kubernetes differences where applicable.
 
 Recommended sequence:
@@ -126,25 +179,15 @@ VERIFY DEPLOYED SHA/VERSION
 → REQUIRED REGRESSION SUITE
 ```
 
-Independent scenarios SHOULD run in parallel when they do not mutate conflicting shared state.
+Independent scenarios SHOULD run in parallel using Main's `dispatching-parallel-agents` capability when they do not mutate conflicting shared state.
 
 ## Scenario origin
 
 Local and test-environment scenarios MUST originate from User Spec, AI Spec, and acceptance criteria.
 
-The same canonical scenario IDs SHOULD be reused in both environments so evidence is directly comparable.
-
-Example:
-
-```text
-E2E-FEATURE-001
-  local: PASS
-  test-env: PASS
-```
+Reuse the same canonical scenario IDs in both environments when possible.
 
 ## Evidence contract
-
-Each environment/scenario records:
 
 ```yaml
 scenario: E2E-FEATURE-001
@@ -152,42 +195,44 @@ requirements:
   - REQ-001
 environment: LOCAL | TEST_ENV
 candidate_revision: <commit-sha-or-version>
-status: PASS | FAIL | BLOCKED
+status: PASS | FAIL | BLOCKED | SKILL_UNAVAILABLE
+skills_used:
+  - verification-before-completion
 steps: []
 expected: []
 actual: []
 evidence:
   - command/log/screenshot/API result reference
+missing_skills: []
 ```
 
 ## Failure handling — local
-
-A local live agent captures evidence and stops. It does not patch production code.
 
 ```text
 LOCAL FAILURE
 → PREMIUM main classification
 → CHEAP/STANDARD debug/research
+→ if root cause unclear: STANDARD debugger + systematic-debugging
 → fix plan
-→ STANDARD code agent
+→ STANDARD implementation agent + test-driven-development
+→ if review findings involved: receiving-code-review
 → task reviews
 → local integration recheck
 → rerun local live/E2E
 → LOCAL GATE again
 ```
 
-No CD push occurs while the local gate is failing.
+No CD push occurs while local gate is failing.
 
 ## Failure handling — test environment
-
-If a scenario fails after CD deployment:
 
 ```text
 TEST-ENV FAILURE
 → capture deployed revision + evidence
 → PREMIUM main classification
 → reproduce/investigate locally
-→ fix locally
+→ debugger uses systematic-debugging when needed
+→ fix locally with test-driven-development
 → task reviews
 → FULL REQUIRED LOCAL GATE PASS
 → create/push new candidate revision
@@ -195,19 +240,21 @@ TEST-ENV FAILURE
 → rerun test-env integration/live/E2E
 ```
 
-Do NOT patch the shared test environment manually to bypass the local-first workflow.
+Do NOT patch shared test environment manually to bypass local-first workflow.
 
-Every code fix discovered in the test environment MUST return through local validation before it is pushed again.
+Every code fix discovered in test environment MUST return through local validation before it is pushed again.
 
 ## UAT
 
-UAT begins only after BOTH gates pass:
+UAT begins only after:
 
 ```text
 LOCAL FULL LIVE/E2E = PASS
 TEST-ENV FULL LIVE/E2E = PASS
 ```
 
-Then run the existing GSD acceptance-oriented `verify-work` capability. Any gap returns to normal planning/implementation gates and must subsequently pass local-first validation again before CD/test-environment retest.
+Then spawn UAT using `gsd-verify-work` + `verification-before-completion`.
 
-Finally run `grill-me check` against original intent before final DONE.
+Any UAT gap returns to planning/implementation gates and must subsequently pass local-first validation again before CD/test-env retest.
+
+Finally Main runs `grill-me check` against original intent before final DONE.
