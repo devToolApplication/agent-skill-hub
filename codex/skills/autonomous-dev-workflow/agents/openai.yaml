@@ -1,6 +1,6 @@
 interface:
   display_name: "Autonomous Dev Workflow"
-  short_description: "Spawn-first gated multi-agent feature delivery"
-  default_prompt: "Use $autonomous-dev-workflow. Run the Main Orchestrator as PREMIUM (gpt-5.5). Aggressively delegate bounded technical work to subagents: STANDARD or CHEAP, both currently resolved to gpt-5.2. Parallelize independent assignments. Main only receives/synthesizes results, resolves requirement/architecture/reviewer conflicts, and enforces gates. For feature-level validation, require full LOCAL integration + live/E2E PASS before any candidate push/CD deployment; then deploy that exact candidate to the test environment and rerun required integration + live/E2E there before UAT. Any test-environment code fix must return through the full required local gate before redeploy."
+  short_description: "Skill-aware spawn-first gated feature delivery"
+  default_prompt: "Use $autonomous-dev-workflow. Run Main as PREMIUM (gpt-5.5). Aggressively delegate bounded work to STANDARD/CHEAP subagents (currently gpt-5.2), parallelizing independent assignments. Before EVERY spawn resolve role -> model_tier -> required_skills/conditional_skills using references/09-skill-routing.md, and include those skills in the assignment contract. Missing mandatory skills must return SKILL_UNAVAILABLE; never silently substitute another workflow. Main only coordinates, synthesizes, resolves global requirement/architecture/reviewer conflicts, and enforces gates. Enforce local integration + full local live/E2E/regression PASS before candidate push/CD, then rerun integration/live/E2E/regression on the deployed test environment before UAT."
 policy:
   allow_implicit_invocation: true
