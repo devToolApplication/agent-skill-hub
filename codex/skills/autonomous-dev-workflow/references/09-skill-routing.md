@@ -138,7 +138,9 @@ Do not load unrelated skills. Main provides only the concrete skills required fo
 
 ### SKILL-007 — Orchestration skills stay with main
 
-Skills that coordinate user intent, global workflow, or parallel dispatch are normally owned by PREMIUM Main and MUST NOT be delegated as decision authority.
+Skills that coordinate user intent, global workflow, process-design lifecycle, or parallel dispatch are normally owned by PREMIUM Main and MUST NOT be delegated as decision authority.
+
+`bpmn-design` is an orchestration contract owned by Main. The specialized BPMN execution skills are delegated separately.
 
 ### SKILL-008 — Main owns resolution
 
@@ -180,13 +182,15 @@ conditional_skills:
     - grill-me
   technical_design:
     - brainstorming
+  process_design_when_applicable:
+    - bpmn-design
   parallel_dispatch:
     - dispatching-parallel-agents
   final_requirement_check:
     - grill-me
 ```
 
-Main keeps final requirement, architecture, conflict, gate, and routing authority. Main also resolves its own stage-specific skill paths before using them.
+Main keeps final requirement, architecture, business-policy, conflict, gate, and routing authority. Main also resolves its own stage-specific skill paths before using them.
 
 ### Repository / source researcher
 
@@ -208,6 +212,84 @@ required_skills: []
 
 Researchers return evidence/options/tradeoffs. They do not decide architecture.
 
+## BPMN process-design roles
+
+These roles are activated only when Main classifies the feature as BPMN-applicable under `autonomous-dev-workflow`.
+
+They are ordered dependencies, not a parallel batch:
+
+```text
+BPMN Architect
+→ BPMN Modeler
+→ BPMN Validator
+→ BPMN Engine Mapper
+```
+
+A validation FAIL routes back to its recommended owner and must be revalidated before the engine mapper or GSD planner can continue.
+
+### BPMN Architect
+
+```yaml
+role: bpmn_architect
+model_tier: STANDARD
+required_skills:
+  - bpmn-architect
+inputs:
+  - approved requirements
+  - approved technical design
+output:
+  - 02-design/bpmn/01-process-design.md
+```
+
+The architect owns logical process semantics inside the approved requirement/architecture boundary. Missing business policy is escalated to Main rather than invented.
+
+### BPMN Modeler
+
+```yaml
+role: bpmn_modeler
+model_tier: STANDARD
+required_skills:
+  - bpmn-modeler
+inputs:
+  - 02-design/bpmn/01-process-design.md
+output:
+  - 02-design/bpmn/process.bpmn
+```
+
+The modeler translates approved semantics into BPMN 2.0 and MUST NOT redefine gateway/branch policy.
+
+### BPMN Validator
+
+```yaml
+role: bpmn_validator
+model_tier: CHEAP
+required_skills:
+  - bpmn-validator
+inputs:
+  - 02-design/bpmn/01-process-design.md
+  - 02-design/bpmn/process.bpmn
+output:
+  - 02-design/bpmn/02-bpmn-validation.md
+```
+
+The validator should use a separate agent/context from the modeler for non-trivial BPMN. It owns `PASS | FAIL` for the BPMN gate.
+
+### BPMN Engine Mapper
+
+```yaml
+role: bpmn_engine_mapper
+model_tier: STANDARD
+required_skills:
+  - bpmn-engine-mapper
+inputs:
+  - validated BPMN artifacts
+  - target workflow engine/runtime evidence
+output:
+  - 02-design/bpmn/03-engine-mapping.md
+```
+
+The mapper may describe required engine changes but MUST NOT silently degrade validated BPMN semantics. Any semantic change returns to Main/BPMN Architect and then revalidation.
+
 ### GSD phase researcher
 
 ```yaml
@@ -225,6 +307,8 @@ model_tier: STANDARD
 required_skills:
   - gsd-plan-phase
 ```
+
+For BPMN-applicable features, the planner receives all validated BPMN artifacts and treats them as immutable process-semantics inputs.
 
 ### Plan checker
 
@@ -251,7 +335,7 @@ conditional_skills:
     - receiving-code-review
 ```
 
-Implementation must stay within the assigned plan and must not approve itself.
+Implementation must stay within the assigned plan and must not approve itself. For BPMN-applicable features it must also preserve the validated BPMN + engine mapping and must not move routing semantics into opaque task/node logic.
 
 ### Debugging agent
 
@@ -419,6 +503,8 @@ PREMIUM Main + dispatching-parallel-agents
     └─ STANDARD Security Reviewer + verification-before-completion path
 ```
 
+The four BPMN process-design roles are not parallelized because each consumes the previous role's accepted output. Independent research inside a BPMN stage may still be parallelized when its write set does not overlap.
+
 ## Repair routing
 
 ```text
@@ -434,6 +520,20 @@ root cause unclear
 -> return root-cause evidence
 -> resolve implementation skill paths
 -> STANDARD implementation agent
+
+BPMN business-semantic finding
+-> STANDARD bpmn_architect + bpmn-architect
+-> Main decides any business-policy change
+-> model/update
+-> CHEAP bpmn_validator
+
+BPMN model/syntax finding
+-> STANDARD bpmn_modeler + bpmn-modeler
+-> CHEAP bpmn_validator
+
+BPMN engine-capability finding
+-> STANDARD bpmn_engine_mapper + bpmn-engine-mapper
+-> if semantics change: architect/Main + revalidation
 ```
 
 ## Availability and alias resolution
