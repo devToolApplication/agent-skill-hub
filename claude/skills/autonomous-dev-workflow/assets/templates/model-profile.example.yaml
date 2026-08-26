@@ -1,0 +1,68 @@
+# Runtime model profile for autonomous-dev-workflow.
+# Keep logical tiers stable; change physical model mapping here when needed.
+
+model_tiers:
+  PREMIUM:
+    model: "gpt-5.5"
+    allowed_for:
+      - main_orchestrator
+    spawn_allowed: false
+
+  STANDARD:
+    model: "gpt-5.2"
+    allowed_for:
+      - subagent
+    spawn_allowed: true
+
+  CHEAP:
+    model: "gpt-5.2"
+    allowed_for:
+      - subagent
+    spawn_allowed: true
+
+role_defaults:
+  main_orchestrator: PREMIUM
+
+  gsd_planner: STANDARD
+  implementation_agent: STANDARD
+  complex_debugger: STANDARD
+  code_reviewer: STANDARD
+  architecture_reviewer: STANDARD
+  security_reviewer: STANDARD
+  performance_reviewer: STANDARD
+  phase_deep_reviewer: STANDARD
+
+  repository_researcher: CHEAP
+  source_inspector: CHEAP
+  library_researcher: CHEAP
+  gsd_researcher: CHEAP
+  plan_checker: CHEAP
+  specification_reviewer: CHEAP
+  test_reviewer: CHEAP
+  command_runner: CHEAP
+  live_api_tester: CHEAP
+  browser_e2e_agent: CHEAP
+  workflow_tester: CHEAP
+  data_validator: CHEAP
+  documentation_agent: CHEAP
+
+rules:
+  main:
+    required_tier: PREMIUM
+    main_may_execute_bounded_worker_tasks: false
+
+  spawned_agents:
+    allowed_tiers:
+      - STANDARD
+      - CHEAP
+    forbidden_tiers:
+      - PREMIUM
+
+  delegation:
+    spawn_first: true
+    parallelize_independent_work: true
+    split_broad_tasks_before_main_takeover: true
+
+  resolution:
+    preserve_model_tier_in_assignment: true
+    include_resolved_model_in_assignment: true

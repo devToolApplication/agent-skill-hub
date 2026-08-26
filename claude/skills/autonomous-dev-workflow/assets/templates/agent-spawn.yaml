@@ -1,0 +1,72 @@
+agent_id: "<unique-id>"
+role: "<role>"
+
+# Logical routing tier. Spawned agents normally use STANDARD or CHEAP.
+# PREMIUM is reserved for the Main Orchestrator.
+model_tier: "<STANDARD|CHEAP>"
+
+# Resolved from assets/templates/model-profile.example.yaml.
+# Current mapping: STANDARD -> gpt-5.2, CHEAP -> gpt-5.2.
+model: "gpt-5.2"
+
+# Main MUST resolve every canonical skill to the concrete installed directory/file
+# before spawning the subagent. Never invent these paths.
+required_skills:
+  - id: "<canonical-skill-id>"
+    resolved_as: "<installed-skill-name-or-alias>"
+    skill_dir: "<concrete-resolved-directory>"
+    skill_file: "<concrete-resolved-directory>/SKILL.md"
+
+# Add only triggers relevant to this assignment. Paths must also be pre-resolved
+# before the triggered skill is used.
+conditional_skills:
+  on_debug:
+    - id: "systematic-debugging"
+      resolved_as: "<installed-skill-name-or-alias>"
+      skill_dir: "<concrete-resolved-directory>"
+      skill_file: "<concrete-resolved-directory>/SKILL.md"
+  on_review_fix:
+    - id: "receiving-code-review"
+      resolved_as: "<installed-skill-name-or-alias>"
+      skill_dir: "<concrete-resolved-directory>"
+      skill_file: "<concrete-resolved-directory>/SKILL.md"
+
+# Main should also render the resolved paths into the human-readable subagent prompt:
+# "Read and follow <skill_file> before doing the assignment."
+skill_prompt_policy:
+  read_before_work: true
+  use_supplied_paths_only: true
+  subagent_may_search_alternative_skills: false
+
+objective: "<bounded objective>"
+inputs:
+  - "<exact file, excerpt, diff, command, or requirement ID>"
+standards:
+  - "<applicable standard only>"
+permissions:
+  read_code: true
+  write_code: false
+  write_tests: false
+  run_tests: false
+  read_docs: true
+  write_feature_docs: false
+  write_service_docs: false
+  modify_requirements: false
+  modify_architecture: false
+  run_live_system: false
+expected_output:
+  schema: "<implementation-result|reviewer-result|research-result|live-result>"
+stop_conditions:
+  - "assignment complete"
+  - "insufficient evidence"
+  - "required skill unavailable"
+  - "supplied skill path invalid"
+  - "blocking environment failure"
+
+on_skill_unavailable:
+  status: "SKILL_UNAVAILABLE"
+  action: "return_to_main_without_substitution"
+
+on_skill_path_invalid:
+  status: "SKILL_PATH_INVALID"
+  action: "return_to_main_for_reresolution"
