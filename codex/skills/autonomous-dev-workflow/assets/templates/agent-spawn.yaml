@@ -9,17 +9,34 @@ model_tier: "<STANDARD|CHEAP>"
 # Current mapping: STANDARD -> gpt-5.2, CHEAP -> gpt-5.2.
 model: "gpt-5.2"
 
-# Skills are resolved from references/09-skill-routing.md before spawn.
-# Every listed required skill MUST be available and loaded by the subagent.
+# Main MUST resolve every canonical skill to the concrete installed directory/file
+# before spawning the subagent. Never invent these paths.
 required_skills:
-  - "<skill-id>"
+  - id: "<canonical-skill-id>"
+    resolved_as: "<installed-skill-name-or-alias>"
+    skill_dir: "<concrete-resolved-directory>"
+    skill_file: "<concrete-resolved-directory>/SKILL.md"
 
-# Add only triggers relevant to this assignment.
+# Add only triggers relevant to this assignment. Paths must also be pre-resolved
+# before the triggered skill is used.
 conditional_skills:
   on_debug:
-    - "systematic-debugging"
+    - id: "systematic-debugging"
+      resolved_as: "<installed-skill-name-or-alias>"
+      skill_dir: "<concrete-resolved-directory>"
+      skill_file: "<concrete-resolved-directory>/SKILL.md"
   on_review_fix:
-    - "receiving-code-review"
+    - id: "receiving-code-review"
+      resolved_as: "<installed-skill-name-or-alias>"
+      skill_dir: "<concrete-resolved-directory>"
+      skill_file: "<concrete-resolved-directory>/SKILL.md"
+
+# Main should also render the resolved paths into the human-readable subagent prompt:
+# "Read and follow <skill_file> before doing the assignment."
+skill_prompt_policy:
+  read_before_work: true
+  use_supplied_paths_only: true
+  subagent_may_search_alternative_skills: false
 
 objective: "<bounded objective>"
 inputs:
@@ -43,8 +60,13 @@ stop_conditions:
   - "assignment complete"
   - "insufficient evidence"
   - "required skill unavailable"
+  - "supplied skill path invalid"
   - "blocking environment failure"
 
 on_skill_unavailable:
   status: "SKILL_UNAVAILABLE"
   action: "return_to_main_without_substitution"
+
+on_skill_path_invalid:
+  status: "SKILL_PATH_INVALID"
+  action: "return_to_main_for_reresolution"
