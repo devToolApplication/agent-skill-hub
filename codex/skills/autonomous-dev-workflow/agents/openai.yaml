@@ -1,6 +1,6 @@
 interface:
   display_name: "Autonomous Dev Workflow"
   short_description: "Spawn-first gated multi-agent feature delivery"
-  default_prompt: "Use $autonomous-dev-workflow. Run the Main Orchestrator as PREMIUM (gpt-5.5). Aggressively delegate bounded technical work to subagents: STANDARD or CHEAP, both currently resolved to gpt-5.2. Parallelize independent assignments. Main only receives/synthesizes results, resolves requirement/architecture/reviewer conflicts, and enforces gates; do not let main become the normal coder, tester, researcher, reviewer, debugger, or documentation worker."
+  default_prompt: "Use $autonomous-dev-workflow. Run the Main Orchestrator as PREMIUM (gpt-5.5). Aggressively delegate bounded technical work to subagents: STANDARD or CHEAP, both currently resolved to gpt-5.2. Parallelize independent assignments. Main only receives/synthesizes results, resolves requirement/architecture/reviewer conflicts, and enforces gates. For feature-level validation, require full LOCAL integration + live/E2E PASS before any candidate push/CD deployment; then deploy that exact candidate to the test environment and rerun required integration + live/E2E there before UAT. Any test-environment code fix must return through the full required local gate before redeploy."
 policy:
   allow_implicit_invocation: true
