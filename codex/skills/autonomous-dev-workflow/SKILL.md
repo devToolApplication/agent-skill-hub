@@ -1,6 +1,6 @@
 ---
 name: autonomous-dev-workflow
-description: Orchestrate end-to-end multi-agent software delivery with Grill Me requirements discovery, brainstorming, GSD planning, skill-aware subagents, TDD implementation, independent reviews, local-first integration/live/E2E gates, CD deployment to test environment, test-environment revalidation, UAT, and final documentation sync. Use PREMIUM for main orchestration and STANDARD/CHEAP for spawned workers. Main is spawn-first and parallel-first; workers must receive explicit required skills before execution.
+description: Orchestrate end-to-end multi-agent software delivery with Grill Me requirements discovery, brainstorming, GSD planning, skill-aware subagents, TDD implementation, independent reviews, local-first integration/live/E2E gates, CD deployment to test environment, test-environment revalidation, UAT, and final documentation sync. Use PREMIUM for main orchestration and STANDARD/CHEAP for spawned workers. Main is spawn-first and parallel-first; before every spawn Main resolves each required skill to its concrete installed directory/SKILL.md and passes those exact paths in the subagent prompt.
 ---
 
 # Autonomous Dev Workflow
@@ -12,6 +12,7 @@ Run a feature through a deterministic multi-agent lifecycle while keeping the PR
 ```text
 receive
 → decompose
+→ resolve skills
 → route
 → synthesize
 → decide
@@ -36,6 +37,26 @@ CHEAP    -> gpt-5.2
 
 Read `references/03-model-routing.md` before spawning.
 
+## Skill preflight is mandatory
+
+Before normal workflow delegation begins, Main MUST discover the actual skills installed/available in the current Codex runtime/workspace and build a session skill index.
+
+Do not assume a fixed filesystem root.
+
+For every canonical workflow skill that may be used, Main resolves:
+
+```yaml
+id: <canonical-skill-id>
+resolved_as: <installed-name-or-alias>
+skill_dir: <actual-installed-directory>
+skill_file: <actual-installed-directory>/SKILL.md
+verified: true
+```
+
+Main may cache this mapping for the orchestration session, but MUST never invent paths.
+
+Read `references/09-skill-routing.md` for discovery, precedence, alias resolution, and path validation.
+
 ## Skill routing is mandatory
 
 Model routing and skill routing are independent:
@@ -43,7 +64,7 @@ Model routing and skill routing are independent:
 ```text
 ROLE
 ├─ model_tier -> physical model
-└─ required_skills / conditional_skills -> execution method
+└─ canonical skills -> concrete installed skill paths -> execution method
 ```
 
 Before every spawn, Main MUST resolve:
@@ -52,13 +73,39 @@ Before every spawn, Main MUST resolve:
 2. model tier;
 3. required skills;
 4. applicable conditional skills;
-5. exact inputs/context;
-6. permissions;
-7. expected output schema.
+5. concrete `skill_dir` + `skill_file` for each skill;
+6. exact inputs/context;
+7. permissions;
+8. expected output schema.
 
-Read `references/09-skill-routing.md` before spawning any implementation, reviewer, debugger, planner, live-test, or UAT agent.
+If a required skill cannot be resolved, do not perform the normal spawn. Record/return `SKILL_UNAVAILABLE`.
 
-If a required skill is unavailable, the subagent MUST return `SKILL_UNAVAILABLE`; it MUST NOT silently substitute a different process.
+If a supplied skill path is invalid when the child starts, the child returns `SKILL_PATH_INVALID` and Main re-resolves it.
+
+## Subagent prompt must contain exact skill paths
+
+Every spawned worker prompt MUST include a clear block equivalent to:
+
+```text
+REQUIRED SKILLS — READ BEFORE WORK
+
+1. <skill-id>
+   Directory: <resolved-skill-directory>
+   SKILL.md: <resolved-skill-directory>/SKILL.md
+
+2. <skill-id>
+   Directory: <resolved-skill-directory>
+   SKILL.md: <resolved-skill-directory>/SKILL.md
+
+Read and follow every SKILL.md above before doing the assignment.
+Use exactly the supplied skill paths.
+Do not search for an alternative workflow skill.
+If a supplied path is invalid, stop and return SKILL_PATH_INVALID.
+```
+
+This is a hard contract, not optional prompt decoration.
+
+Subagents should spend tokens doing their bounded task, not rediscovering workflow skills that Main already resolved.
 
 ## Absolute orchestration rules
 
@@ -78,17 +125,26 @@ If bounded technical work can be expressed with clear inputs/output, Main MUST s
 
 The burden of proof is on **not spawning**.
 
-### MAIN-004 — Parallelize independent work
+### MAIN-004 — Resolve before spawn
 
-When assignments are independent and have no overlapping write set, Main SHOULD use:
+Main MUST resolve every required skill to a verified concrete path before the child starts.
+
+The order is:
 
 ```text
-dispatching-parallel-agents
+choose role
+→ choose tier
+→ choose canonical skills
+→ resolve actual skill directories/SKILL.md files
+→ build narrow prompt
+→ spawn
 ```
 
-and spawn them concurrently.
+### MAIN-005 — Parallelize independent work
 
-### MAIN-005 — Narrow context
+When assignments are independent and have no overlapping write set, Main SHOULD resolve all child skill paths first, use the concrete `dispatching-parallel-agents` skill path itself, and spawn children concurrently.
+
+### MAIN-006 — Narrow context
 
 Every subagent receives only relevant:
 
@@ -96,12 +152,12 @@ Every subagent receives only relevant:
 - requirement IDs;
 - files/docs/diff;
 - standards;
-- required skills;
+- required skill IDs and exact paths;
 - permissions;
 - expected output;
 - stop conditions.
 
-### MAIN-006 — Independent verification
+### MAIN-007 — Independent verification
 
 Implementers never approve themselves.
 
@@ -112,17 +168,17 @@ Every non-trivial implementation task requires independent:
 - Code Reviewer;
 - applicable dynamic reviewers.
 
-### MAIN-007 — Evidence before PASS
+### MAIN-008 — Evidence before PASS
 
-Never accept `done`, `fixed`, `tests pass`, or `deployed` without inspectable evidence.
+Never accept `done`, `fixed`, `tests pass`, `deployed`, or `skill loaded` without inspectable evidence.
 
-### MAIN-008 — No silent scope/architecture change
+### MAIN-009 — No silent scope/architecture change
 
 Subagents report conflicts. Main owns final requirement, scope, architecture, reviewer-conflict, and gate decisions.
 
 ## Main-owned orchestration skills
 
-Main uses these capabilities when their stage is active:
+Main uses these capabilities when their stage is active and MUST resolve their concrete skill paths before use:
 
 ```yaml
 requirement_discovery:
@@ -147,6 +203,8 @@ USER ROUGH PLAN
       ↓
 PREMIUM MAIN
       ↓
+SKILL PREFLIGHT / BUILD SKILL INDEX
+      ↓
 GRILL-ME REQUIREMENT DISCOVERY
       ↓
 USER SPEC + AI SPEC
@@ -166,21 +224,21 @@ GSD PLAN-PHASE
 SMALL IMPLEMENTATION PLAN
       ↓
 STANDARD IMPLEMENTATION AGENT
-  └─ test-driven-development
+  └─ read supplied test-driven-development/SKILL.md
       ↓
 PARALLEL REVIEWS
   ├─ CHEAP Spec Reviewer
-  │    └─ verification-before-completion
+  │    └─ read supplied verification-before-completion/SKILL.md
   ├─ CHEAP Test Reviewer
-  │    └─ verification-before-completion
+  │    └─ read supplied verification-before-completion/SKILL.md
   ├─ STANDARD Code Reviewer
-  │    ├─ requesting-code-review
-  │    └─ verification-before-completion
+  │    ├─ read supplied requesting-code-review/SKILL.md
+  │    └─ read supplied verification-before-completion/SKILL.md
   └─ dynamic reviewers
       ↓
 PREMIUM MAIN TASK GATE
       ↓
-ALL TASKS/P HASES PASS
+ALL TASKS/PHASES PASS
       ↓
 LOCAL INTEGRATION VERIFY
       ↓
@@ -211,7 +269,7 @@ DONE
 
 Read `references/01-workflow.md` for the exact state machine.
 
-# Stage 0 — Feature initialization
+# Stage 0 — Feature initialization + skill preflight
 
 Create/use:
 
@@ -219,63 +277,58 @@ Create/use:
 docs/05-features/<YYYYMMDD-feature-name>/
 ```
 
-Follow `references/02-documentation.md`.
+Persist rough plan and initialize state to `DRAFT`.
 
-Main may delegate mechanical workspace creation to a CHEAP documentation/repository agent.
+Before spawning planning/research/implementation agents, Main discovers and resolves the concrete skill paths required by this workflow.
+
+Main may delegate mechanical workspace/doc initialization only after the child's required project/domain skills, if any, are resolved and supplied.
 
 # Stage 1 — Requirement discovery
 
-Main runs `grill-me` for requirement discovery.
+Main resolves and reads the installed `grill-me` skill path, then runs requirement discovery.
 
-Repository evidence needed to answer questions SHOULD be gathered by CHEAP research agents.
+Main owns the user conversation and final requirement interpretation.
+
+Repository evidence should be delegated to CHEAP research agents.
 
 Produce:
 
-- user spec;
-- AI spec;
-- stable `REQ-*`, `NFR-*`, `SEC-*`, `PERF-*` IDs;
-- acceptance criteria;
-- scenarios;
-- scope/out-of-scope.
+- `00-discovery/grill-me.md`
+- User Spec
+- AI Spec with stable `REQ-*`, `NFR-*`, `SEC-*`, `PERF-*` IDs.
 
-Do not proceed while critical intent is unresolved.
+# Stage 2 — Technical design / brainstorming
 
-# Stage 2 — Technical design
+Main resolves and reads the installed `brainstorming` skill.
 
-Main runs `brainstorming`.
+Default:
 
-Default pattern:
+1. identify technical questions;
+2. spawn independent research agents;
+3. collect facts/options/tradeoffs;
+4. use challengers when useful;
+5. Main synthesizes;
+6. Main decides architecture.
 
-```text
-identify independent questions
-→ dispatch CHEAP research agents in parallel
-→ optionally dispatch STANDARD specialist/challenger
-→ collect evidence/options/tradeoffs
-→ PREMIUM Main synthesizes and decides
-```
-
-Research agents do not own architecture decisions.
+Research agents do not own final architecture decisions.
 
 # Stage 3 — Phase planning
 
-Use GSD planning semantics:
+Resolve `gsd-plan-phase` to a concrete installed path before spawning any planning agent.
+
+Default:
 
 ```text
-CHEAP research
-→ STANDARD planner
-→ CHEAP plan checker
-→ revision until PASS/BLOCKED
+CHEAP GSD Researcher
+→ STANDARD GSD Planner
+→ CHEAP Plan Checker
 ```
 
-Canonical role skill:
-
-```text
-gsd-plan-phase
-```
-
-Every implementation plan MUST include a `Required Skills` section. Use `assets/templates/implementation-plan.md`.
+All children receive the same verified GSD skill path when that canonical skill is required.
 
 No coding before plan-check PASS.
+
+Read `references/06-phase-planning.md`.
 
 # Stage 4 — Implementation
 
@@ -283,271 +336,191 @@ Spawn a fresh STANDARD implementation agent.
 
 Required skill:
 
-```yaml
-required_skills:
-  - test-driven-development
+```text
+test-driven-development
 ```
 
-Conditional skills:
+Main passes its exact resolved directory and `SKILL.md` path in the prompt.
 
-```yaml
-conditional_skills:
-  on_debug:
-    - systematic-debugging
-  on_review_fix:
-    - receiving-code-review
+Conditional:
+
+```text
+on unknown root cause -> systematic-debugging
+on review correction -> receiving-code-review
 ```
 
-Implementation agent may modify assigned code/tests, but may not change requirements/architecture or approve itself.
+Resolve conditional skill paths before they are used.
 
-# Stage 5 — Parallel task review
+Implementation agent MUST NOT alter requirements/architecture or approve itself.
 
-Main SHOULD use `dispatching-parallel-agents` to spawn independent reviewers.
+# Stage 5 — Parallel independent review
 
-Mandatory mapping:
+Main resolves all reviewer skill paths before parallel dispatch.
 
-```yaml
-specification_reviewer:
-  model_tier: CHEAP
-  required_skills:
-    - verification-before-completion
+Mandatory:
 
-test_reviewer:
-  model_tier: CHEAP
-  required_skills:
-    - verification-before-completion
+```text
+Spec Reviewer
+  CHEAP
+  verification-before-completion
 
-code_reviewer:
-  model_tier: STANDARD
-  required_skills:
-    - requesting-code-review
-    - verification-before-completion
+Test Reviewer
+  CHEAP
+  verification-before-completion
+
+Code Reviewer
+  STANDARD
+  requesting-code-review
+  verification-before-completion
 ```
 
-Dynamic reviewers follow `references/05-review-gates.md` and `references/09-skill-routing.md`.
+The prompt for each reviewer contains its own concrete skill paths.
+
+Read `references/05-review-gates.md`.
 
 # Stage 6 — Repair loop
 
-Clear review finding:
+Clear review findings:
 
 ```text
 STANDARD implementation agent
-→ receiving-code-review
-→ test-driven-development
-→ verification
-→ affected reviewers again
++ receiving-code-review path
++ test-driven-development path
 ```
 
 Unknown root cause:
 
 ```text
 STANDARD debugger
-→ systematic-debugging
-→ root-cause evidence
++ systematic-debugging path
+→ evidence
 → STANDARD implementation agent
-→ test-driven-development
-→ reviewers again
++ test-driven-development path
 ```
 
-Main does not perform routine debugging itself.
+After fix, rerun all affected reviewers with their resolved skills.
 
 # Stage 7 — Phase gate
 
-After all task gates in a phase PASS, spawn a fresh phase reviewer:
+Phase reviewer requires resolved:
 
-```yaml
-model_tier: STANDARD
-required_skills:
-  - gsd-code-review
-  - gsd-validate-phase
-  - verification-before-completion
+```text
+gsd-code-review
+gsd-validate-phase
+verification-before-completion
 ```
 
-Conditionally add:
+Any triggered security/UI phase capability must also be resolved to an actual installed skill path before use.
 
-- `gsd-secure-phase`;
-- `gsd-ui-review`.
+# Stage 8 — Local-first integration/live validation
 
-Cross-task gaps become explicit gap plans and return through normal planning/implementation/review.
-
-# Stage 8 — Local-first integration and live validation
-
-This order is mandatory:
+Required order:
 
 ```text
 ALL PHASES PASS
-→ LOCAL_INTEGRATION_VERIFY
-→ LOCAL_LIVE_TESTING
-→ READY_FOR_CD_TEST
-→ CD_TEST_DEPLOYING
-→ TEST_ENV_INTEGRATION_VERIFY
-→ TEST_ENV_LIVE_TESTING
-→ UAT
+→ LOCAL INTEGRATION
+→ LOCAL FULL LIVE/E2E + REGRESSION
+→ LOCAL GATE PASS
+→ candidate commit
+→ PUSH/CD TEST ENV
+→ verify exact deployed revision
+→ TEST-ENV INTEGRATION
+→ TEST-ENV FULL LIVE/E2E + REGRESSION
 ```
 
-There is no normal path from implementation directly to CD/test environment.
+All verification/live agents receive resolved `verification-before-completion` paths plus any required browser/domain-specific skill path.
 
-## Local integration
+Never push/CD while local gate is failing.
 
-Spawn verifier with:
-
-```yaml
-required_skills:
-  - verification-before-completion
-```
-
-## Local live/E2E
-
-Run every mandatory live/E2E scenario locally before push/CD.
-
-Default agents are CHEAP and require:
-
-```yaml
-required_skills:
-  - verification-before-completion
-```
-
-For browser/UI scenarios, add the installed browser/Playwright skill explicitly.
-
-Local gate requires:
-
-- integration PASS;
-- mandatory live/E2E PASS;
-- regression PASS;
-- required skill evidence;
-- zero BLOCKER/HIGH;
-- no code change after PASS without revalidation.
-
-Only then finalize candidate revision and push.
-
-## CD/test environment
-
-Deploy the exact candidate that passed local gate.
-
-Verify deployed SHA/version before testing.
-
-Then rerun:
-
-- integration;
-- API live;
-- workflow live;
-- data validation;
-- browser/E2E;
-- regression.
-
-Test-env agents also require `verification-before-completion` plus scenario-specific installed skills.
-
-If test env finds a bug:
-
-```text
-capture evidence
-→ reproduce/fix LOCAL
-→ code review/test review
-→ FULL LOCAL GATE again
-→ new candidate
-→ CD again
-→ test env again
-```
-
-Never patch shared test environment to bypass local-first validation.
+Any code fix found in test env returns to local fix/review/full local gate before a new candidate is deployed.
 
 Read `references/07-live-validation.md`.
 
-# Stage 9 — UAT and final audit
+# Stage 9 — UAT + final check
 
-UAT begins only after both local and test-env live gates PASS.
+UAT agent receives resolved paths for:
 
-Spawn UAT agent with:
-
-```yaml
-required_skills:
-  - gsd-verify-work
-  - verification-before-completion
+```text
+gsd-verify-work
+verification-before-completion
 ```
 
-After UAT PASS, Main runs final `grill-me` check against original intent.
+Main then runs final requirement check using its resolved `grill-me` path.
 
-Then verify:
-
-- requirement traceability complete;
-- all phases PASS;
-- local gate PASS;
-- deployed candidate identity verified;
-- test-env gate PASS;
-- UAT PASS;
-- no BLOCKER/HIGH;
-- current-state service/architecture docs synchronized.
+After final gate, delegate docs sync when applicable.
 
 # Spawn contract
 
-Every spawned assignment MUST include:
-
-```yaml
-agent_id: "<unique-id>"
-role: "<role>"
-model_tier: "<STANDARD|CHEAP>"
-model: "gpt-5.2"
-required_skills:
-  - "<skill-id>"
-conditional_skills: {}
-objective: "<bounded objective>"
-inputs: []
-standards: []
-permissions: {}
-expected_output:
-  schema: "<schema>"
-stop_conditions: []
-```
-
 Use `assets/templates/agent-spawn.yaml`.
 
-# Skill evidence
-
-Every result SHOULD include:
+Every child assignment includes:
 
 ```yaml
-skills_used:
-  - <skill-id>
-missing_skills: []
+role: <role>
+model_tier: STANDARD | CHEAP
+model: gpt-5.2
+required_skills:
+  - id: <canonical-id>
+    resolved_as: <installed-name>
+    skill_dir: <actual-directory>
+    skill_file: <actual-directory>/SKILL.md
 ```
 
-A mandatory role returning `SKILL_UNAVAILABLE` cannot PASS its gate.
+Main MUST ensure the actual prompt tells the child to read those exact `SKILL.md` files before work.
 
-# Completion
+# Failure handling
 
-A task is DONE only after implementation/tests and all mandatory/applicable reviewers PASS.
-
-A phase is DONE only after all tasks and phase-level validation PASS.
-
-A feature is DONE only after:
+Use:
 
 ```text
-Requirements PASS
-All phases PASS
-Local integration PASS
-Local live/E2E/regression PASS
-CD candidate identity verified
-Test-env integration PASS
-Test-env live/E2E/regression PASS
-UAT PASS
-Final Grill check PASS
-Traceability complete
-Current-state docs synchronized
-BLOCKER/HIGH = 0
+SKILL_UNAVAILABLE
 ```
 
-# Reference map
+when Main cannot resolve a mandatory skill.
 
-Load only what is needed:
+Use:
 
-- `references/01-workflow.md` — lifecycle states and hard gates.
-- `references/02-documentation.md` — docs layout and ownership.
-- `references/03-model-routing.md` — PREMIUM/STANDARD/CHEAP mapping and spawn-first rules.
-- `references/04-agent-contracts.md` — tier + skill aware assignment/result contracts.
-- `references/05-review-gates.md` — reviewer mapping, severity, re-review.
-- `references/06-phase-planning.md` — phase/plan sizing.
+```text
+SKILL_PATH_INVALID
+```
+
+when a child receives a path that no longer resolves to the expected skill.
+
+Neither status can PASS a gate.
+
+Do not allow children to search for alternate workflow skills; return to Main for re-resolution.
+
+# Completion definitions
+
+Task complete only when implementation, tests, required reviewers, skill evidence, and blocking finding gates pass.
+
+Phase complete only when all tasks + phase verification pass.
+
+Feature complete only when:
+
+- requirements traceable;
+- all phases PASS;
+- local integration/live/E2E/regression PASS;
+- exact local-tested candidate deployed through CD;
+- test-env integration/live/E2E/regression PASS;
+- UAT PASS;
+- final Grill check PASS;
+- docs synchronized;
+- zero unresolved BLOCKER/HIGH;
+- no unresolved skill/path errors.
+
+## Reference map
+
+Load only as needed:
+
+- `references/01-workflow.md` — state machine and hard gates.
+- `references/02-documentation.md` — docs layout.
+- `references/03-model-routing.md` — model tiers.
+- `references/04-agent-contracts.md` — spawn contract including concrete skill paths.
+- `references/05-review-gates.md` — review policy.
+- `references/06-phase-planning.md` — plan sizing/gates.
 - `references/07-live-validation.md` — local-first + CD/test-env validation.
-- `references/08-rule-routing.md` — project standards/reviewer triggers.
-- `references/09-skill-routing.md` — canonical role -> required/conditional skill mapping.
+- `references/08-rule-routing.md` — engineering rule routing.
+- `references/09-skill-routing.md` — canonical role skills, discovery, concrete path resolution, prompt requirements.
 
 Templates live under `assets/templates/`.
