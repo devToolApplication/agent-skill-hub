@@ -17,11 +17,24 @@ design:
 
 phases: {}
 
-integration:
-  status: PENDING
+local_validation:
+  integration: PENDING
+  live_e2e: PENDING
+  regression: PENDING
+  gate: PENDING
+  validated_revision: null
 
-live_test:
-  status: PENDING
+cd_test:
+  candidate_revision: null
+  push_status: PENDING
+  deploy_status: PENDING
+  deployed_revision: null
+
+ test_environment_validation:
+  integration: PENDING
+  live_e2e: PENDING
+  regression: PENDING
+  gate: PENDING
 
 uat:
   status: PENDING
@@ -37,6 +50,13 @@ final_audit:
 - Technical design: `01-design/technical-design.md`
 - Decisions: `01-design/decisions.md`
 - Traceability: `traceability.md`
+- Live/E2E evidence: `04-testing/live-test.md`
+
+## Validation rule
+
+`cd_test` MUST remain `PENDING` until `local_validation.gate = PASS`.
+
+Any code change after a local PASS invalidates the local gate and requires local re-validation before the next push/CD deployment.
 
 ## Current blockers
 
