@@ -33,10 +33,28 @@ PHASE_FIX_REQUIRED
 LOCAL_TEST_FIX_REQUIRED
 CD_DEPLOY_BLOCKED
 TEST_ENV_TEST_FIX_REQUIRED
+SKILL_UNAVAILABLE
 REQUIREMENT_CONFLICT
 ARCHITECTURE_DECISION_REQUIRED
 BLOCKED
 ```
+
+## Global skill gate
+
+Before any spawned assignment begins, Main MUST resolve the role through `09-skill-routing.md` and ensure all `required_skills` are available.
+
+If a mandatory skill cannot be resolved:
+
+```text
+assignment
+→ SKILL_UNAVAILABLE
+→ return missing skill IDs to Main
+→ resolve/install/map skill or BLOCK
+```
+
+A `SKILL_UNAVAILABLE` result can never be treated as PASS.
+
+Every mandatory agent result SHOULD record `skills_used`.
 
 ## Transition rules
 
@@ -45,8 +63,8 @@ BLOCKED
 - `REQUIREMENTS_LOCKED → DESIGNING`: AI spec has stable requirement IDs.
 - `DESIGNING → DESIGN_READY`: architecture decisions and phase boundaries are approved.
 - `DESIGN_READY → PHASE_PLANNING`: next phase selected.
-- `PHASE_PLANNING → IMPLEMENTING`: implementation plans pass plan checker.
-- `IMPLEMENTING → PHASE_REVIEW`: every plan in phase passes mandatory task reviews.
+- `PHASE_PLANNING → IMPLEMENTING`: GSD plan/check agents used required skills and plans pass plan checker.
+- `IMPLEMENTING → PHASE_REVIEW`: every plan in phase passes mandatory task reviews with skill evidence.
 - `PHASE_REVIEW → PHASE_PLANNING`: phase gap found; create gap plans.
 - `PHASE_REVIEW → IMPLEMENTING`: another planned phase exists after phase gate PASS.
 - final phase PASS → `LOCAL_INTEGRATION_VERIFY`.
@@ -62,7 +80,7 @@ BLOCKED
 
 ## Hard gates
 
-Never advance across a hard gate when mandatory evidence is missing.
+Never advance across a hard gate when mandatory evidence or required-skill evidence is missing.
 
 ### Requirement gate
 
@@ -73,21 +91,35 @@ Require:
 - known critical constraints;
 - unresolved critical question count = 0.
 
+### Plan gate
+
+Require:
+- `gsd-plan-phase` resolved and used by required planning roles;
+- requirement mappings exist;
+- dependencies valid;
+- tests and verification explicit;
+- plan checker PASS.
+
 ### Task gate
 
 Require:
 - implementation result COMPLETE;
+- implementation agent used `test-driven-development`;
+- `systematic-debugging` used when debugging trigger occurred;
+- `receiving-code-review` used when review-fix trigger occurred;
 - tests executed;
-- Spec Reviewer PASS;
-- Test Reviewer PASS;
-- Code Reviewer PASS;
-- all triggered dynamic reviewers PASS;
+- Spec Reviewer PASS with `verification-before-completion`;
+- Test Reviewer PASS with `verification-before-completion`;
+- Code Reviewer PASS with `requesting-code-review` + `verification-before-completion`;
+- all triggered dynamic reviewers PASS with required skills;
 - zero unresolved BLOCKER/HIGH findings.
 
 ### Phase gate
 
 Require:
 - all task gates PASS;
+- phase reviewer used `gsd-code-review`, `gsd-validate-phase`, and `verification-before-completion`;
+- conditional `gsd-secure-phase` / `gsd-ui-review` used when triggered;
 - phase-level verification PASS;
 - phase acceptance criteria PASS;
 - no unresolved phase gap.
@@ -96,14 +128,15 @@ Require:
 
 Before any candidate push/CD test deployment, require:
 
-- local integration verification PASS;
-- every mandatory local live/E2E scenario PASS;
+- local integration verifier used `verification-before-completion` and PASS;
+- every mandatory local live/E2E scenario PASS using required validation skills;
+- browser/UI scenarios used the configured browser/Playwright skill when applicable;
 - relevant local regression suite PASS;
 - zero unresolved BLOCKER/HIGH findings;
 - local evidence recorded;
-- no code change after the successful local gate without re-running the required local validation.
+- no code change after successful local gate without re-running required local validation.
 
-If local validation fails, state becomes `LOCAL_TEST_FIX_REQUIRED` and the workflow returns through fix/review/local-validation. CD deployment is forbidden.
+If local validation fails, state becomes `LOCAL_TEST_FIX_REQUIRED` and workflow returns through fix/review/local-validation. CD deployment is forbidden.
 
 ### CD deployment gate
 
@@ -111,23 +144,31 @@ Require:
 
 - local validation gate PASS;
 - candidate revision/commit SHA recorded;
-- only that candidate is pushed/deployed;
-- CD deployment reports success;
-- deployed revision/version matches the candidate that passed local validation.
+- only that candidate pushed/deployed;
+- CD deployment success;
+- deployed revision/version matches candidate that passed local validation.
 
-If deployment fails or deployed revision is wrong, state becomes `CD_DEPLOY_BLOCKED`.
+If deployment fails or revision is wrong, state becomes `CD_DEPLOY_BLOCKED`.
 
 ### Test-environment validation gate
 
 Require:
 
-- test-environment integration verification PASS;
-- every mandatory test-environment live/E2E scenario PASS;
+- test-environment integration verifier used required verification skill and PASS;
+- every mandatory test-environment live/E2E scenario PASS using required skills;
+- browser/UI scenarios used configured browser/Playwright skill where applicable;
 - required regression suite PASS;
 - zero unresolved BLOCKER/HIGH findings;
-- evidence references the deployed candidate revision.
+- evidence references deployed candidate revision.
 
-A test-environment failure MUST NOT be hot-fixed directly in the shared environment. Return to local reproduction/fix/review and re-run the complete required local gate before pushing a new candidate.
+A test-environment failure MUST NOT be hot-fixed directly in shared environment. Return to local reproduction/fix/review and re-run complete required local gate before pushing a new candidate.
+
+### UAT gate
+
+Require:
+- `gsd-verify-work` available and used;
+- `verification-before-completion` used;
+- UAT PASS.
 
 ### Feature gate
 
@@ -140,15 +181,28 @@ Require:
 - test-environment full live/E2E PASS;
 - UAT PASS;
 - Grill final check PASS;
-- traceability complete for both LOCAL and TEST_ENV where applicable;
+- traceability complete for LOCAL and TEST_ENV where applicable;
 - current-state docs updated;
-- zero BLOCKER/HIGH findings.
+- zero unresolved BLOCKER/HIGH findings;
+- no unresolved `SKILL_UNAVAILABLE`.
 
 ## Conflict routes
 
+### Skill unavailable
+
+Set `SKILL_UNAVAILABLE` for the assignment.
+
+Main may:
+- resolve an installed alias/equivalent and record `resolved_as`;
+- install/configure the required skill outside this workflow when supported;
+- choose an explicitly approved equivalent skill;
+- BLOCK the workflow.
+
+Main MUST NOT silently drop the required skill.
+
 ### Scope expansion
 
-Subagent returns `SCOPE_EXPANSION_REQUIRED` with evidence. Main chooses to reject it, extend the plan, add a new plan, change a phase, or revise requirements.
+Subagent returns `SCOPE_EXPANSION_REQUIRED` with evidence. Main chooses to reject it, extend plan, add a new plan, change a phase, or revise requirements.
 
 ### Requirement conflict
 
@@ -156,17 +210,15 @@ Set `REQUIREMENT_CONFLICT`. Do not code around it. Main resolves intent, updates
 
 ### Architecture decision
 
-Set `ARCHITECTURE_DECISION_REQUIRED`. Code agent must not silently introduce major architecture changes. Main owns the decision and records it.
+Set `ARCHITECTURE_DECISION_REQUIRED`. Code agent must not silently introduce major architecture changes. Main owns decision and records it.
 
 ### Local validation failure
 
 Set `LOCAL_TEST_FIX_REQUIRED`.
 
-Route:
-
 ```text
 local failure
-→ debug/research
+→ debug/research with required skills
 → fix plan/code
 → task reviews
 → local integration
@@ -174,19 +226,17 @@ local failure
 → local gate
 ```
 
-Do not push/CD while this state is unresolved.
+Do not push/CD while unresolved.
 
 ### Test-environment validation failure
 
 Set `TEST_ENV_TEST_FIX_REQUIRED`.
 
-Route:
-
 ```text
 test-env failure
 → capture deployed revision/evidence
 → reproduce/investigate locally
-→ fix locally
+→ fix locally using required implementation/debug skills
 → task reviews
 → full required local gate PASS
 → new candidate revision
