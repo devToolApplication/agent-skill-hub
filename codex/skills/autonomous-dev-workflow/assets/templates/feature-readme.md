@@ -30,7 +30,7 @@ cd_test:
   deploy_status: PENDING
   deployed_revision: null
 
- test_environment_validation:
+test_environment_validation:
   integration: PENDING
   live_e2e: PENDING
   regression: PENDING
