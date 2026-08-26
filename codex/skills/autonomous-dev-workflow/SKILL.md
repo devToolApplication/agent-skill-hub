@@ -1,29 +1,28 @@
 ---
 name: autonomous-dev-workflow
-description: Orchestrate end-to-end multi-agent software feature delivery from rough plan through Grill Me requirements discovery, brainstorming, GSD phase planning, narrow implementation agents, independent reviews, repair loops, phase gates, integration verification, live/E2E testing, UAT, and final documentation sync. Use logical model tiers: PREMIUM for the main orchestrator, STANDARD/CHEAP for subagents. Current mapping is PREMIUM=gpt-5.5, STANDARD=gpt-5.2, CHEAP=gpt-5.2. Strongly prefer spawning parallel subagents while main only coordinates, synthesizes, decides, and gates.
+description: Orchestrate end-to-end multi-agent software delivery with Grill Me requirements discovery, brainstorming, GSD planning, skill-aware subagents, TDD implementation, independent reviews, local-first integration/live/E2E gates, CD deployment to test environment, test-environment revalidation, UAT, and final documentation sync. Use PREMIUM for main orchestration and STANDARD/CHEAP for spawned workers. Main is spawn-first and parallel-first; workers must receive explicit required skills before execution.
 ---
 
 # Autonomous Dev Workflow
 
-## Objective
+## Purpose
 
-Run a feature through a deterministic, evidence-based multi-agent lifecycle while preserving the Main Orchestrator for high-leverage reasoning.
-
-This workflow is **spawn-first** and **parallel-first**.
+Run a feature through a deterministic multi-agent lifecycle while keeping the PREMIUM Main Orchestrator focused on:
 
 ```text
-PREMIUM MAIN
-= receive + decompose + route + synthesize + decide + gate
-
-STANDARD/CHEAP SUBAGENTS
-= inspect + research + plan details + code + test + review + debug + live validate + docs
+receive
+→ decompose
+→ route
+→ synthesize
+→ decide
+→ gate
 ```
 
-The main agent is an orchestrator, not a normal worker.
+Main is not the normal coder, tester, researcher, reviewer, debugger, or live-test worker.
 
-## Model-tier policy
+## Model tiers
 
-Keep three logical tiers even if multiple tiers currently resolve to the same physical model.
+Keep three logical tiers:
 
 ```text
 PREMIUM  -> gpt-5.5
@@ -31,535 +30,524 @@ STANDARD -> gpt-5.2
 CHEAP    -> gpt-5.2
 ```
 
-Tier meaning:
+- `PREMIUM`: Main Orchestrator only.
+- `STANDARD`: implementation and reasoning-heavy subagent work.
+- `CHEAP`: narrow, deterministic, evidence-oriented subagent work.
 
-- `PREMIUM`: Main Orchestrator only; global reasoning, decisions, synthesis, gates.
-- `STANDARD`: reasoning-heavy subagent work such as implementation, planning, code review, architecture/security/performance review, complex debugging.
-- `CHEAP`: bounded/mechanical subagent work such as repository research, source inspection, test execution, spec review, live execution, evidence collection, docs synchronization.
+Read `references/03-model-routing.md` before spawning.
 
-Normal spawned agents MUST use `STANDARD` or `CHEAP`. Do not spawn `PREMIUM` for ordinary worker roles.
+## Skill routing is mandatory
 
-Read `references/03-model-routing.md` before spawning agents.
+Model routing and skill routing are independent:
+
+```text
+ROLE
+├─ model_tier -> physical model
+└─ required_skills / conditional_skills -> execution method
+```
+
+Before every spawn, Main MUST resolve:
+
+1. role;
+2. model tier;
+3. required skills;
+4. applicable conditional skills;
+5. exact inputs/context;
+6. permissions;
+7. expected output schema.
+
+Read `references/09-skill-routing.md` before spawning any implementation, reviewer, debugger, planner, live-test, or UAT agent.
+
+If a required skill is unavailable, the subagent MUST return `SKILL_UNAVAILABLE`; it MUST NOT silently substitute a different process.
 
 ## Absolute orchestration rules
 
 ### MAIN-001 — Main uses PREMIUM
 
-The Main Orchestrator MUST use logical tier:
-
 ```text
-PREMIUM
+PREMIUM -> gpt-5.5
 ```
 
-Current resolved model:
+### MAIN-002 — Spawned agents use STANDARD or CHEAP
 
-```text
-gpt-5.5
-```
-
-### MAIN-002 — Subagents use STANDARD or CHEAP
-
-Every spawned worker/reviewer/researcher/tester MUST declare:
-
-```text
-model_tier: STANDARD | CHEAP
-```
-
-Current resolved model for both tiers:
-
-```text
-gpt-5.2
-```
+Normal workers MUST NOT use PREMIUM.
 
 ### MAIN-003 — Spawn before doing
 
-Before main performs technical/repository/execution work itself, it MUST ask whether the work can be expressed as a bounded assignment.
-
-If yes, main MUST spawn one or more subagents instead.
+If bounded technical work can be expressed with clear inputs/output, Main MUST spawn a subagent instead of doing it directly.
 
 The burden of proof is on **not spawning**.
 
-### MAIN-004 — Main owns decisions, not execution
+### MAIN-004 — Parallelize independent work
 
-Main owns:
-
-- user interaction;
-- workflow state;
-- requirement interpretation;
-- decomposition;
-- assignment/tier selection;
-- result synthesis;
-- architecture/scope decisions;
-- reviewer-conflict resolution;
-- prioritization;
-- PASS/FAIL/BLOCKED gates;
-- next-state routing.
-
-Main SHOULD NOT directly:
-
-- broadly explore repositories;
-- inspect many implementation files;
-- research libraries/options;
-- draft detailed implementation plans when a planner can do it;
-- edit production code;
-- write implementation tests;
-- run routine tests;
-- perform normal code review;
-- perform routine debugging investigation;
-- execute live/E2E scenarios;
-- perform large documentation synchronization.
-
-Main MAY inspect only the minimum evidence needed to construct an assignment, resolve conflicts, make a global decision, or verify a gate.
-
-### MAIN-005 — Parallelize independent work
-
-When assignments are independent and have no overlapping write set, spawn them concurrently.
-
-Examples:
+When assignments are independent and have no overlapping write set, Main SHOULD use:
 
 ```text
-CHEAP repo research A ------┐
-CHEAP library research B ---+--> PREMIUM main synthesis
-CHEAP evidence research C --┘
+dispatching-parallel-agents
 ```
 
-```text
-CHEAP spec reviewer --------┐
-CHEAP test reviewer --------+--> PREMIUM main review gate
-STANDARD code reviewer -----┤
-STANDARD security reviewer -┘
-```
+and spawn them concurrently.
 
-### MAIN-006 — Narrow context
+### MAIN-005 — Narrow context
 
-Every spawn receives only:
+Every subagent receives only relevant:
 
-- exact objective;
-- exact relevant files/docs/diff;
-- relevant requirement IDs;
-- applicable standards;
+- objective;
+- requirement IDs;
+- files/docs/diff;
+- standards;
+- required skills;
 - permissions;
-- expected output schema;
+- expected output;
 - stop conditions.
 
-Do not dump the whole conversation or repository history into subagents.
+### MAIN-006 — Independent verification
 
-### MAIN-007 — Independent review
+Implementers never approve themselves.
 
-Implementers MUST NOT approve their own work.
-
-Every non-trivial implementation plan requires independent:
+Every non-trivial implementation task requires independent:
 
 - Specification Reviewer;
 - Test Reviewer;
-- Code Reviewer.
+- Code Reviewer;
+- applicable dynamic reviewers.
 
-Add dynamic reviewers when applicable.
+### MAIN-007 — Evidence before PASS
 
-### MAIN-008 — Evidence before PASS
+Never accept `done`, `fixed`, `tests pass`, or `deployed` without inspectable evidence.
 
-Never accept `done`, `fixed`, or `tests pass` without inspectable evidence.
+### MAIN-008 — No silent scope/architecture change
 
-### MAIN-009 — No silent scope/architecture change
+Subagents report conflicts. Main owns final requirement, scope, architecture, reviewer-conflict, and gate decisions.
 
-Subagents MUST NOT silently alter requirements, scope, or major architecture.
+## Main-owned orchestration skills
 
-They return the conflict/decision request. PREMIUM main decides and records it.
+Main uses these capabilities when their stage is active:
 
-### MAIN-010 — Split before taking over
+```yaml
+requirement_discovery:
+  - grill-me
 
-If a task is too broad for one subagent:
+technical_design:
+  - brainstorming
 
-```text
-split problem
--> assign STANDARD/CHEAP tier per unit
--> spawn multiple subagents
--> receive structured results
--> PREMIUM main synthesizes
--> spawn bounded execution agents
+parallel_dispatch:
+  - dispatching-parallel-agents
+
+final_requirement_check:
+  - grill-me
 ```
 
-Main taking over production implementation is not a normal escalation path.
-
-## Default tier routing
-
-Use `STANDARD` by default for:
-
-- GSD planner;
-- implementation/code agent;
-- complex debugger;
-- code reviewer;
-- architecture reviewer;
-- security reviewer;
-- performance reviewer;
-- complex API/database reviewer;
-- phase-level deep reviewer.
-
-Use `CHEAP` by default for:
-
-- repository/file researcher;
-- source inspector;
-- library/options researcher;
-- GSD researcher;
-- simple plan checker;
-- specification reviewer;
-- test reviewer/runner;
-- command runner;
-- live API tester;
-- browser/E2E executor;
-- workflow tester;
-- data validator;
-- documentation synchronization agent.
-
-Main MAY route a CHEAP role to STANDARD when task complexity warrants it. Current physical model remains `gpt-5.2` for either tier, but the logical distinction MUST be preserved.
+Main may spawn research agents during brainstorming, but Main retains final architecture authority.
 
 ## Canonical workflow
 
 ```text
 USER ROUGH PLAN
-      │
-      ▼
+      ↓
 PREMIUM MAIN
-      │
-      ├─ Grill Me / requirement conversation
-      │
-      └─ spawn CHEAP repository evidence agents as needed
-      ▼
+      ↓
+GRILL-ME REQUIREMENT DISCOVERY
+      ↓
 USER SPEC + AI SPEC
-      │
-      ▼
+      ↓
 BRAINSTORMING
-      │
-      ├─ CHEAP repo/library/option research agents
-      ├─ optional STANDARD challenger for complex tradeoffs
-      └─ PREMIUM main synthesizes + decides architecture
-      ▼
+  ├─ CHEAP research agents
+  ├─ optional STANDARD challenger
+  └─ PREMIUM Main decides design
+      ↓
 TECHNICAL DESIGN + PHASES
-      │
-      ▼
+      ↓
 GSD PLAN-PHASE
-      │
-      ├─ CHEAP researcher
-      ├─ STANDARD planner
-      └─ CHEAP plan checker
-      ▼
+  ├─ CHEAP researcher
+  ├─ STANDARD planner
+  └─ CHEAP plan checker
+      ↓
 SMALL IMPLEMENTATION PLAN
-      │
-      ▼
-STANDARD CODE AGENT + TDD
-      │
-      ▼
+      ↓
+STANDARD IMPLEMENTATION AGENT
+  └─ test-driven-development
+      ↓
 PARALLEL REVIEWS
-      │
-      ├─ CHEAP Spec Reviewer
-      ├─ CHEAP Test Reviewer
-      ├─ STANDARD Code Reviewer
-      └─ dynamic STANDARD/CHEAP reviewers
-      ▼
-PREMIUM MAIN GATE
-  ┌───┴────┐
- FAIL     PASS
-  │         │
-  ▼         ▼
-fix loop   next plan
-  │         │
-  └─────────┤
-            ▼
-        PHASE GATE
-            │
-      FAIL ─┼─ PASS
-        │       │
-        ▼       ▼
-     gap plan  next phase
-            │
-            ▼
-      ALL PHASES PASS
-            │
-            ▼
-   STANDARD/CHEAP integration agents
-            │
-            ▼
-      CHEAP live/E2E agents
-            │
-            ▼
-           UAT
-            │
-            ▼
-      GRILL-ME CHECK
-            │
-            ▼
-      PREMIUM FINAL GATE
-            │
-            ▼
-      CHEAP docs sync agent
-            │
-            ▼
-           DONE
+  ├─ CHEAP Spec Reviewer
+  │    └─ verification-before-completion
+  ├─ CHEAP Test Reviewer
+  │    └─ verification-before-completion
+  ├─ STANDARD Code Reviewer
+  │    ├─ requesting-code-review
+  │    └─ verification-before-completion
+  └─ dynamic reviewers
+      ↓
+PREMIUM MAIN TASK GATE
+      ↓
+ALL TASKS/P HASES PASS
+      ↓
+LOCAL INTEGRATION VERIFY
+      ↓
+LOCAL FULL LIVE/E2E + REGRESSION
+      ↓
+LOCAL GATE PASS
+      ↓
+FINALIZE CANDIDATE COMMIT
+      ↓
+PUSH + CD DEPLOY TEST ENV
+      ↓
+VERIFY DEPLOYED REVISION
+      ↓
+TEST-ENV INTEGRATION VERIFY
+      ↓
+TEST-ENV FULL LIVE/E2E + REGRESSION
+      ↓
+UAT
+      ↓
+GRILL-ME FINAL CHECK
+      ↓
+FINAL AUDIT
+      ↓
+DOC SYNC
+      ↓
+DONE
 ```
 
-## Stage 0 — Feature initialization
+Read `references/01-workflow.md` for the exact state machine.
 
-Initialize the feature workspace described in `references/02-documentation.md`.
+# Stage 0 — Feature initialization
 
-Feature root:
+Create/use:
 
 ```text
 docs/05-features/<YYYYMMDD-feature-name>/
 ```
 
-Persist the rough plan and initialize state to `DRAFT`.
+Follow `references/02-documentation.md`.
 
-Main may delegate mechanical workspace/doc initialization to a CHEAP agent.
+Main may delegate mechanical workspace creation to a CHEAP documentation/repository agent.
 
-## Stage 1 — Requirement discovery
+# Stage 1 — Requirement discovery
 
-Run `grill-me plan`.
+Main runs `grill-me` for requirement discovery.
 
-Main owns the user conversation and final requirement interpretation.
-
-Any repository evidence needed during requirement discovery SHOULD be delegated to CHEAP research agents.
+Repository evidence needed to answer questions SHOULD be gathered by CHEAP research agents.
 
 Produce:
 
-- `00-discovery/grill-me.md`
-- `docs/01-product/features/<feature>/user-spec.md`
-- `docs/02-ai-spec/features/<feature>/ai-spec.md`
+- user spec;
+- AI spec;
+- stable `REQ-*`, `NFR-*`, `SEC-*`, `PERF-*` IDs;
+- acceptance criteria;
+- scenarios;
+- scope/out-of-scope.
 
-Use stable IDs such as `REQ-*`, `NFR-*`, `SEC-*`, `PERF-*`.
+Do not proceed while critical intent is unresolved.
 
-Advance only when critical requirements and acceptance criteria are explicit enough. State: `REQUIREMENTS_LOCKED`.
+# Stage 2 — Technical design
 
-## Stage 2 — Technical design / brainstorming
-
-Main orchestrates `brainstorming`.
+Main runs `brainstorming`.
 
 Default pattern:
 
-1. identify technical questions;
-2. spawn independent CHEAP research agents in parallel;
-3. use STANDARD specialist/challenger agents for reasoning-heavy questions when useful;
-4. collect facts/options/tradeoffs;
-5. PREMIUM main synthesizes;
-6. PREMIUM main decides architecture and records decisions.
+```text
+identify independent questions
+→ dispatch CHEAP research agents in parallel
+→ optionally dispatch STANDARD specialist/challenger
+→ collect evidence/options/tradeoffs
+→ PREMIUM Main synthesizes and decides
+```
 
-Research agents do not own the final architecture decision.
+Research agents do not own architecture decisions.
 
-Produce:
+# Stage 3 — Phase planning
 
-- `01-design/technical-design.md`
-- `01-design/architecture-impact.md`
-- `01-design/data-flow.md`
-- `01-design/decisions.md`
-
-Split approved design into coherent phases. State: `DESIGN_READY`.
-
-## Stage 3 — Phase planning
-
-For each phase invoke GSD phase planning.
-
-Default tier routing:
+Use GSD planning semantics:
 
 ```text
 CHEAP research
--> STANDARD planner
--> CHEAP plan checker
--> revision until PASS/BLOCKED
+→ STANDARD planner
+→ CHEAP plan checker
+→ revision until PASS/BLOCKED
 ```
 
-Main receives plan/check results and makes only the phase-plan gate decision.
+Canonical role skill:
 
-Every implementation document must be executable by one fresh STANDARD code agent with narrow context.
+```text
+gsd-plan-phase
+```
 
-Use `assets/templates/implementation-plan.md`.
+Every implementation plan MUST include a `Required Skills` section. Use `assets/templates/implementation-plan.md`.
 
 No coding before plan-check PASS.
 
-## Stage 4 — Implementation
+# Stage 4 — Implementation
 
-Main prepares a narrow assignment and spawns a fresh STANDARD implementation agent.
+Spawn a fresh STANDARD implementation agent.
 
-Inputs SHOULD include only:
+Required skill:
 
-- current implementation plan;
-- assigned requirement IDs;
-- relevant phase boundaries/decisions;
-- exact files/interfaces to inspect;
-- applicable engineering standards;
-- verification commands.
-
-Use `references/04-agent-contracts.md` and `assets/templates/agent-spawn.yaml`.
-
-Implementation agent:
-
-- may read/write assigned code;
-- may read/write assigned tests;
-- uses TDD where applicable;
-- runs required verification;
-- may use systematic debugging;
-- MUST NOT alter requirements or architecture;
-- MUST NOT approve its own task.
-
-## Stage 5 — Parallel independent review
-
-After implementation, main creates one canonical review bundle and immediately spawns reviewers.
-
-Mandatory roles:
-
-```text
-Specification Reviewer -> CHEAP
-Test Reviewer          -> CHEAP
-Code Reviewer          -> STANDARD
+```yaml
+required_skills:
+  - test-driven-development
 ```
 
-Spawn them in parallel when read-only over the same diff/evidence.
+Conditional skills:
 
-Dynamic reviewers MAY include:
+```yaml
+conditional_skills:
+  on_debug:
+    - systematic-debugging
+  on_review_fix:
+    - receiving-code-review
+```
 
-- Architecture -> STANDARD;
-- DB -> CHEAP or STANDARD;
-- API/Event -> CHEAP or STANDARD;
-- Security -> STANDARD;
-- Performance -> STANDARD;
-- UI/UX -> CHEAP or STANDARD;
-- Infrastructure/operations -> CHEAP or STANDARD.
+Implementation agent may modify assigned code/tests, but may not change requirements/architecture or approve itself.
 
-Reviewers are read-only by default and MUST NOT silently patch code.
+# Stage 5 — Parallel task review
 
-Use `references/05-review-gates.md`.
+Main SHOULD use `dispatching-parallel-agents` to spawn independent reviewers.
 
-## Stage 6 — Repair loop
+Mandatory mapping:
 
-If any mandatory reviewer fails:
+```yaml
+specification_reviewer:
+  model_tier: CHEAP
+  required_skills:
+    - verification-before-completion
 
-1. PREMIUM main aggregates/deduplicates findings;
-2. main resolves conflicting findings only when needed;
-3. spawn a STANDARD code agent with the bounded correction bundle;
-4. agent fixes + verifies;
-5. re-spawn all affected reviewers.
+test_reviewer:
+  model_tier: CHEAP
+  required_skills:
+    - verification-before-completion
 
-If root cause is unclear, spawn CHEAP evidence/debug agents and/or a STANDARD debugger. Main synthesizes the evidence and routes a bounded fix.
+code_reviewer:
+  model_tier: STANDARD
+  required_skills:
+    - requesting-code-review
+    - verification-before-completion
+```
 
-Do not let main debug implementation directly unless resolving a global design decision.
+Dynamic reviewers follow `references/05-review-gates.md` and `references/09-skill-routing.md`.
 
-## Stage 7 — Phase gate
+# Stage 6 — Repair loop
 
-After all plans in the phase pass, spawn phase-level verification/review agents.
+Clear review finding:
 
-Use GSD quality capabilities where available.
+```text
+STANDARD implementation agent
+→ receiving-code-review
+→ test-driven-development
+→ verification
+→ affected reviewers again
+```
 
-Phase review searches for cross-task problems:
+Unknown root cause:
 
-- integration mismatch;
-- duplicate abstractions;
-- wrong dependency direction;
-- inconsistent contracts;
-- missing requirement coverage;
-- runtime-flow errors.
+```text
+STANDARD debugger
+→ systematic-debugging
+→ root-cause evidence
+→ STANDARD implementation agent
+→ test-driven-development
+→ reviewers again
+```
 
-PREMIUM main receives results and decides the phase gate.
+Main does not perform routine debugging itself.
 
-Failures become explicit gap plans and return through normal planning/implementation/review.
+# Stage 7 — Phase gate
 
-## Stage 8 — Integration + live/E2E
+After all task gates in a phase PASS, spawn a fresh phase reviewer:
 
-After all phases pass, spawn STANDARD/CHEAP integration agents based on complexity.
+```yaml
+model_tier: STANDARD
+required_skills:
+  - gsd-code-review
+  - gsd-validate-phase
+  - verification-before-completion
+```
 
-Then spawn specialized CHEAP live agents, preferably in parallel by independent scenario/domain:
+Conditionally add:
 
-- API Live Test Agent;
-- Browser/E2E Agent;
-- Workflow Scenario Agent;
-- Data Validation Agent;
-- External Integration Agent.
+- `gsd-secure-phase`;
+- `gsd-ui-review`.
 
-Use real system behavior in an appropriate test environment where practical.
+Cross-task gaps become explicit gap plans and return through normal planning/implementation/review.
 
-Live agents capture evidence and MUST NOT patch production code.
+# Stage 8 — Local-first integration and live validation
 
-Failures return to main for classification, then to STANDARD/CHEAP debug/fix agents.
+This order is mandatory:
+
+```text
+ALL PHASES PASS
+→ LOCAL_INTEGRATION_VERIFY
+→ LOCAL_LIVE_TESTING
+→ READY_FOR_CD_TEST
+→ CD_TEST_DEPLOYING
+→ TEST_ENV_INTEGRATION_VERIFY
+→ TEST_ENV_LIVE_TESTING
+→ UAT
+```
+
+There is no normal path from implementation directly to CD/test environment.
+
+## Local integration
+
+Spawn verifier with:
+
+```yaml
+required_skills:
+  - verification-before-completion
+```
+
+## Local live/E2E
+
+Run every mandatory live/E2E scenario locally before push/CD.
+
+Default agents are CHEAP and require:
+
+```yaml
+required_skills:
+  - verification-before-completion
+```
+
+For browser/UI scenarios, add the installed browser/Playwright skill explicitly.
+
+Local gate requires:
+
+- integration PASS;
+- mandatory live/E2E PASS;
+- regression PASS;
+- required skill evidence;
+- zero BLOCKER/HIGH;
+- no code change after PASS without revalidation.
+
+Only then finalize candidate revision and push.
+
+## CD/test environment
+
+Deploy the exact candidate that passed local gate.
+
+Verify deployed SHA/version before testing.
+
+Then rerun:
+
+- integration;
+- API live;
+- workflow live;
+- data validation;
+- browser/E2E;
+- regression.
+
+Test-env agents also require `verification-before-completion` plus scenario-specific installed skills.
+
+If test env finds a bug:
+
+```text
+capture evidence
+→ reproduce/fix LOCAL
+→ code review/test review
+→ FULL LOCAL GATE again
+→ new candidate
+→ CD again
+→ test env again
+```
+
+Never patch shared test environment to bypass local-first validation.
 
 Read `references/07-live-validation.md`.
 
-## Stage 9 — UAT and final audit
+# Stage 9 — UAT and final audit
 
-After automated live/E2E passes:
+UAT begins only after both local and test-env live gates PASS.
 
-1. run GSD `verify-work` / UAT;
-2. run `grill-me check` against original intent;
-3. spawn CHEAP verification agents for traceability/evidence if needed;
-4. PREMIUM main performs final completion gate;
-5. spawn CHEAP documentation agent to synchronize current-state docs;
-6. main verifies returned documentation evidence/diff;
-7. set state to `DONE` only when all gates pass.
+Spawn UAT agent with:
 
-## Failure escalation
-
-Do not escalate a worker to PREMIUM merely because it failed.
-
-Prefer:
-
-```text
-same tier + better context
--> fresh agent
--> narrower task
--> split into multiple CHEAP/STANDARD investigations
--> PREMIUM main synthesis/decision
--> fresh STANDARD execution agent
+```yaml
+required_skills:
+  - gsd-verify-work
+  - verification-before-completion
 ```
 
-Eventually mark `BLOCKED` with evidence if unresolved.
+After UAT PASS, Main runs final `grill-me` check against original intent.
 
-## Agent spawn contract
+Then verify:
 
-Every spawned assignment MUST preserve the logical tier:
+- requirement traceability complete;
+- all phases PASS;
+- local gate PASS;
+- deployed candidate identity verified;
+- test-env gate PASS;
+- UAT PASS;
+- no BLOCKER/HIGH;
+- current-state service/architecture docs synchronized.
+
+# Spawn contract
+
+Every spawned assignment MUST include:
 
 ```yaml
 agent_id: "<unique-id>"
 role: "<role>"
 model_tier: "<STANDARD|CHEAP>"
 model: "gpt-5.2"
+required_skills:
+  - "<skill-id>"
+conditional_skills: {}
 objective: "<bounded objective>"
+inputs: []
+standards: []
+permissions: {}
+expected_output:
+  schema: "<schema>"
+stop_conditions: []
 ```
-
-The `model` is resolved from `model_tier`; both fields are retained for auditability.
 
 Use `assets/templates/agent-spawn.yaml`.
 
-## Context budget
+# Skill evidence
 
-Main preserves its context by delegating repository-heavy and execution-heavy work.
+Every result SHOULD include:
 
-Before every spawn provide exact inputs and expected output. After return retain only evidence/results needed for synthesis and the next gate.
+```yaml
+skills_used:
+  - <skill-id>
+missing_skills: []
+```
 
-Fresh agents are preferred for:
+A mandatory role returning `SKILL_UNAVAILABLE` cannot PASS its gate.
 
-- independent research;
-- implementation plans;
-- implementation tasks;
-- independent reviews;
-- escalated debugging;
-- phase reviews;
-- live validation.
+# Completion
 
-## Completion definitions
+A task is DONE only after implementation/tests and all mandatory/applicable reviewers PASS.
 
-A task is complete only when implementation, required tests, Spec review, Test review, Code review, and applicable dynamic reviews pass with no unresolved blocking finding.
+A phase is DONE only after all tasks and phase-level validation PASS.
 
-A phase is complete only when all tasks pass and phase verification passes with no blocking gap.
+A feature is DONE only after:
 
-A feature is complete only when all requirements are traceable, all phases pass, integration passes, live/E2E passes, UAT passes, final Grill check passes, and current-state documentation is synchronized.
+```text
+Requirements PASS
+All phases PASS
+Local integration PASS
+Local live/E2E/regression PASS
+CD candidate identity verified
+Test-env integration PASS
+Test-env live/E2E/regression PASS
+UAT PASS
+Final Grill check PASS
+Traceability complete
+Current-state docs synchronized
+BLOCKER/HIGH = 0
+```
 
-## Reference map
+# Reference map
 
 Load only what is needed:
 
-- `references/01-workflow.md` — state machine, gates, failure routes.
-- `references/02-documentation.md` — canonical docs layout and ownership.
-- `references/03-model-routing.md` — PREMIUM/STANDARD/CHEAP routing, model mapping, spawn-first policy.
-- `references/04-agent-contracts.md` — tier-aware spawn, permissions, structured outputs.
-- `references/05-review-gates.md` — reviewer roles, severity, aggregation, re-review.
-- `references/06-phase-planning.md` — phase boundaries and implementation-plan sizing.
-- `references/07-live-validation.md` — integration, live/E2E, evidence, UAT.
-- `references/08-rule-routing.md` — choose project standards/reviewers from changed areas.
+- `references/01-workflow.md` — lifecycle states and hard gates.
+- `references/02-documentation.md` — docs layout and ownership.
+- `references/03-model-routing.md` — PREMIUM/STANDARD/CHEAP mapping and spawn-first rules.
+- `references/04-agent-contracts.md` — tier + skill aware assignment/result contracts.
+- `references/05-review-gates.md` — reviewer mapping, severity, re-review.
+- `references/06-phase-planning.md` — phase/plan sizing.
+- `references/07-live-validation.md` — local-first + CD/test-env validation.
+- `references/08-rule-routing.md` — project standards/reviewer triggers.
+- `references/09-skill-routing.md` — canonical role -> required/conditional skill mapping.
 
 Templates live under `assets/templates/`.
