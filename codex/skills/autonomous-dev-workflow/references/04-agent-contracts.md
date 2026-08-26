@@ -1,8 +1,19 @@
 # Agent Contracts
 
-## Model-tier contract
+## Routing contract
 
-This workflow uses logical tiers in every assignment:
+Every assignment has two independent routing dimensions:
+
+```text
+ROLE
+├─ model_tier -> model profile -> physical model
+└─ required_skills / conditional_skills -> execution method
+```
+
+Model routing is defined in `03-model-routing.md`.
+Skill routing is defined in `09-skill-routing.md`.
+
+## Model-tier contract
 
 ```text
 PREMIUM  -> gpt-5.5
@@ -10,20 +21,36 @@ STANDARD -> gpt-5.2
 CHEAP    -> gpt-5.2
 ```
 
-`PREMIUM` is reserved for the Main Orchestrator.
-Normal spawned agents MUST use either `STANDARD` or `CHEAP`.
+`PREMIUM` is reserved for the Main Orchestrator. Normal spawned agents MUST use `STANDARD` or `CHEAP`.
 
-The purpose of the tier is routing semantics. The physical model is resolved from the model profile.
+## Skill contract
+
+Before every spawn, Main MUST resolve the role into explicit `required_skills` and any applicable `conditional_skills`.
+
+A spawned agent MUST load/use every listed required skill.
+
+If a required skill cannot be resolved, return:
+
+```yaml
+status: SKILL_UNAVAILABLE
+missing_skills:
+  - <skill-id>
+```
+
+Do not silently substitute another workflow.
 
 ## Spawn contract
 
-Every spawn MUST specify both logical tier and resolved model:
+Every spawn MUST specify:
 
 ```yaml
 agent_id: unique-id
 role: role-name
 model_tier: STANDARD | CHEAP
 model: gpt-5.2
+required_skills:
+  - skill-id
+conditional_skills: {}
 objective: concise bounded assignment
 inputs:
   - exact files, excerpts, diffs, commands, or requirement IDs
@@ -45,45 +72,63 @@ expected_output:
 stop_conditions:
   - assignment complete
   - evidence insufficient
+  - required skill unavailable
   - environment blocked
 ```
 
 Use `assets/templates/agent-spawn.yaml`.
 
-## Default tier by role
+## Canonical role examples
 
-Use `STANDARD` when the task requires substantial implementation/reasoning judgment:
+### Implementation agent
 
-- implementation/code agent;
-- GSD planner;
-- complex debugger;
-- code reviewer;
-- architecture reviewer;
-- security reviewer;
-- performance reviewer;
-- complex API/database reviewer;
-- phase-level deep reviewer.
+```yaml
+role: implementation_agent
+model_tier: STANDARD
+required_skills:
+  - test-driven-development
+conditional_skills:
+  on_debug:
+    - systematic-debugging
+  on_review_fix:
+    - receiving-code-review
+```
 
-Use `CHEAP` when the task is narrow, deterministic, evidence-oriented, or mechanical:
+### Test reviewer
 
-- repository/file researcher;
-- source inspector;
-- library/options researcher;
-- GSD researcher;
-- simple plan checker;
-- specification reviewer;
-- test reviewer/runner;
-- command runner;
-- simple API/database reviewer;
-- live/E2E executor;
-- data validator;
-- documentation sync agent.
+```yaml
+role: test_reviewer
+model_tier: CHEAP
+required_skills:
+  - verification-before-completion
+```
 
-Main may override `CHEAP <-> STANDARD` based on task complexity, but MUST NOT assign `PREMIUM` to a normal spawned agent.
+### Code reviewer
+
+```yaml
+role: code_reviewer
+model_tier: STANDARD
+required_skills:
+  - requesting-code-review
+  - verification-before-completion
+```
+
+### Phase deep reviewer
+
+```yaml
+role: phase_deep_reviewer
+model_tier: STANDARD
+required_skills:
+  - gsd-code-review
+  - gsd-validate-phase
+  - verification-before-completion
+```
+
+See `09-skill-routing.md` for the full role matrix.
 
 ## Delegation-first rule
 
-The main agent MUST prefer spawning subagents over performing bounded technical work itself.
+Main MUST prefer spawning subagents over performing bounded technical work itself.
 
 Delegate by default:
 
@@ -95,30 +140,27 @@ Delegate by default:
 - command/test execution;
 - code/spec/test/security/architecture/API/DB/UI/performance review;
 - debugging investigation;
-- integration and live/E2E validation;
+- integration and local/test-env live validation;
 - documentation drafting and synchronization.
 
-Main should receive structured results, synthesize them, make global decisions, enforce gates, and choose the next assignment.
+Main receives structured results, synthesizes them, makes global decisions, enforces gates, and chooses the next assignment.
 
-When a task is too broad to delegate safely, main MUST first split it into narrower assignments rather than taking over execution.
-
-Main may directly inspect only the minimum evidence necessary to construct an assignment, resolve conflicting subagent results, or verify a gate.
+When a task is too broad, split it into narrower assignments before considering direct execution.
 
 ## Parallel-first rule
 
-When multiple assignments are independent and do not have overlapping write sets, main SHOULD spawn them concurrently.
+When assignments are independent and do not have overlapping write sets, Main SHOULD use `dispatching-parallel-agents` and spawn them concurrently.
 
-Typical parallel groups:
-
-```text
-CHEAP repo research + CHEAP library research + CHEAP architecture evidence
-```
+Typical group:
 
 ```text
-CHEAP spec reviewer + CHEAP test reviewer + STANDARD code reviewer + applicable specialist reviewers
+CHEAP Spec Reviewer
++ CHEAP Test Reviewer
++ STANDARD Code Reviewer
++ applicable specialist reviewers
 ```
 
-Do not parallelize overlapping writers unless the plan explicitly isolates their files/symbols.
+Each parallel child still receives its own role-specific skills.
 
 ## Least privilege
 
@@ -138,7 +180,7 @@ Cannot:
 
 Can normally:
 - read code/docs/diff;
-- run tests or analyzers required for verification.
+- run tests/analyzers required for verification.
 
 Cannot:
 - silently patch production code;
@@ -150,15 +192,17 @@ Read-only. Returns facts/options/tradeoffs/unknowns.
 
 ### Live test agent
 
-Can run real systems/scenarios and capture evidence. Cannot patch production code.
+Can run local or deployed scenarios and capture evidence. Cannot patch production code.
 
 ## Implementation result
 
 ```yaml
-status: COMPLETE | PARTIAL | BLOCKED
+status: COMPLETE | PARTIAL | BLOCKED | SKILL_UNAVAILABLE
 plan_id: P02-03
 requirements:
   REQ-001: implemented
+skills_used:
+  - test-driven-development
 files_changed: []
 tests_added: []
 tests_modified: []
@@ -168,32 +212,33 @@ commands_executed:
 deviations: []
 known_risks: []
 uncertainties: []
+missing_skills: []
 ```
 
 ## Research result
 
 ```yaml
-status: COMPLETE | BLOCKED
+status: COMPLETE | BLOCKED | SKILL_UNAVAILABLE
+skills_used: []
 facts: []
 options: []
 tradeoffs: []
 risks: []
 unknowns: []
+missing_skills: []
 recommendation: optional
 ```
 
-Recommendations are advisory; main owns architectural decisions.
+Recommendations are advisory; Main owns architectural decisions.
 
 ## Communication rule
 
 Prefer:
 
 ```text
-PREMIUM Main -> structured assignment
-STANDARD/CHEAP Subagent -> structured result
+PREMIUM Main -> structured assignment including skills
+STANDARD/CHEAP Subagent -> structured evidence/result + skills_used
 PREMIUM Main -> synthesize / gate / next assignment
 ```
 
-Avoid long free-form chains between subagents.
-
-Main SHOULD NOT re-perform delegated work merely to obtain a second answer. If independent verification is required, spawn another `STANDARD` or `CHEAP` reviewer with the appropriate contract.
+Main SHOULD NOT re-perform delegated work merely to obtain a second answer. Spawn another reviewer/validator with the appropriate skill contract.
