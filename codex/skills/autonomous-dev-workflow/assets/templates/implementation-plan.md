@@ -1,66 +1,92 @@
-# <Plan ID> — <Title>
+# <Plan ID> - <Plan Name>
 
 ## Metadata
 
-- Phase: <Pxx>
-- Requirement IDs: <REQ-*>
-- Dependencies: <plan/contracts>
+- Phase: <phase>
+- Requirement IDs: <REQ-...>
+- Dependencies: <plan IDs or none>
+- Agent role: implementation_agent
+- Model tier: STANDARD
+
+## Required Skills
+
+```yaml
+required_skills:
+  - test-driven-development
+conditional_skills:
+  on_debug:
+    - systematic-debugging
+  on_review_fix:
+    - receiving-code-review
+```
 
 ## Objective
 
-<Bounded implementation outcome.>
+<one coherent result>
 
 ## Why
 
-<Reason this work exists and what it unlocks.>
+<requirement/design reason>
 
-## Context to read
+## Context to Read
 
-- <exact docs/files/sections>
+- <specific doc sections>
 
-## Existing files to inspect
+## Relevant Existing Files
 
-- `path/to/file`
+- `<path>` - <why>
 
-## Files expected to create
+## Files Expected to Change
 
-- `path/to/new-file`
+- `<path>` - <expected change>
 
-## Files expected to modify
+## Files Expected to Be Created
 
-- `path/to/file`
+- `<path>` - <purpose>
 
-## Interfaces / contracts
+## Interfaces / Contracts
 
-- ...
+<signatures, DTOs, schemas, events, invariants>
 
-## Detailed implementation steps
+## Detailed Implementation Steps
 
-1. ...
-2. ...
+1. <small deterministic step>
+2. <step>
+3. <step>
 
-## Testing requirements
+## Testing Requirements
 
-- ...
+- <failing test first where applicable>
+- <positive case>
+- <negative/boundary/regression cases>
 
-## Acceptance criteria
+## Acceptance Criteria
 
-- [ ] ...
+- [ ] <observable outcome>
+- [ ] <observable outcome>
 
-## Verification commands
+## Verification Commands
 
 ```bash
 <command>
 ```
 
-## Engineering standards to load
+## Engineering Standards to Load
 
-- `docs/03-architecture/standards/...`
+- `<standard path>`
 
-## Things NOT to change
+## Things NOT to Change
 
-- ...
+- <scope boundary>
 
-## Expected implementation result
+## Expected Agent Output
 
-Return structured status, requirement coverage, files changed, tests, commands/results, deviations, risks, and uncertainties.
+- status
+- skills_used
+- files changed
+- tests added/changed
+- commands and results
+- deviations
+- risks
+- uncertainties
+- missing_skills if any
