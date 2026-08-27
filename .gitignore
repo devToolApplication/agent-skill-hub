@@ -1,0 +1,33 @@
+# System & OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.history/
+
+# Environments & Local Overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local Temporary & Cache Files
+.tmp/
+*.tmp
+*.log
+*.out
+*.err
+
+# Claude & Codex local runtime session data
+.claude/
+.codex/
+.tool/
+.ua/
+.worktrees/

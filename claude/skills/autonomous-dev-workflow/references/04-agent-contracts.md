@@ -1,72 +1,38 @@
 # Agent Contracts
 
-## Routing contract
+## Dedicated Agent Dispatch
 
-Every assignment has two independent routing dimensions:
-
-```text
-ROLE
-├─ model_tier -> model profile -> physical model
-└─ canonical skills -> concrete installed skill paths -> execution method
-```
-
-Model routing is defined in `03-model-routing.md`.
-Skill/path routing is defined in `09-skill-routing.md`.
-
-## Model-tier contract
+Mỗi nhiệm vụ trong workflow được điều phối trực tiếp tới một Dedicated Agent tương ứng. Mỗi Agent được đóng gói sẵn tập Skills, Tools và MCP servers:
 
 ```text
-PREMIUM  -> gpt-5.5
-STANDARD -> gpt-5.2
-CHEAP    -> gpt-5.2
+ASSIGNMENT
+└─ target_agent (subagent_type)
+   ├─ tools & mcp access (isolated per agent)
+   └─ pre-configured skills
 ```
 
-`PREMIUM` is reserved for the Main Orchestrator. Normal spawned agents MUST use `STANDARD` or `CHEAP`.
+## Agent Catalog
 
-## Skill-resolution contract
+| Agent Name | Description | Tools / MCP | Skills |
+|---|---|---|---|
+| `ba-agent` | Business Analysis & Spec | Read, Write, Edit, Grep, Glob | `requirement-analysis`, `user-story-writing`, `acceptance-criteria`, `functional-specification` |
+| `architect-agent` | System Architecture & Design | Read, Write, Edit, Grep, Glob, MongoDB MCP | `system-architecture`, `microservice-design`, `api-contract-design`, `architecture-decision-record` |
+| `dev-be-agent` | Backend Development | Read, Write, Edit, Bash, Grep, Glob, MongoDB MCP | `test-driven-development`, `systematic-debugging`, `api-contract-design`, `integration-patterns` |
+| `dev-fe-agent` | Frontend Development | Read, Write, Edit, Bash, Grep, Glob | `dev-fe-design-skills`, `tailwind-design-system`, `responsive-layout`, `angular-animations-patterns` |
+| `test-qa-agent` | QA & Testing | Read, Write, Edit, Bash, Grep, Glob | `test-strategy`, `test-case-design`, `playwright-e2e-testing`, `api-testing`, `bug-report-writing` |
+| `bpmn-agent` | BPMN Workflow Design | Read, Write, Edit, Grep, Glob | `bpmn-modeler`, `bpmn-design`, `bpmn-validator`, `bpmn-architect` |
+| `trade-analysis-agent` | Trade Strategy & Rules | Read, Write, Edit, Grep, Glob, MongoDB MCP | `requirement-analysis`, `data-requirement-spec`, `technical-risk-assessment` |
 
-Before every spawn, Main MUST:
+## Spawn Contract
 
-1. resolve the role into canonical `required_skills` and applicable `conditional_skills`;
-2. locate the concrete installed directory for every required skill;
-3. locate and verify the exact `SKILL.md` file;
-4. preserve the canonical ID, installed/aliased name, directory, and file path in the assignment;
-5. render the same resolved paths into the human-readable prompt sent to the subagent.
-
-Main should build/cache a session skill index once and reuse it, while revalidating paths when needed.
-
-A subagent MUST NOT choose a different skill implementation by itself.
-
-## Missing/invalid skill handling
-
-If Main cannot resolve a required skill before spawn:
-
-```yaml
-status: SKILL_UNAVAILABLE
-missing_skills:
-  - <skill-id>
-```
-
-If a supplied path becomes invalid when the subagent starts:
-
-```yaml
-status: SKILL_PATH_INVALID
-invalid_skills:
-  - id: <skill-id>
-    skill_file: <supplied-path>
-```
-
-In both cases, return control to Main. Do not silently substitute another workflow or filesystem path.
-
-## Spawn contract
-
-Every spawn MUST specify:
+Khi spawn subagent, Main chỉ định trực tiếp qua `subagent_type`:
 
 ```yaml
 agent_id: unique-id
-role: role-name
-model_tier: STANDARD | CHEAP
-model: gpt-5.2
+subagent_type: ba-agent | architect-agent | dev-be-agent | dev-fe-agent | test-qa-agent | bpmn-agent | trade-analysis-agent
+prompt: |
+  <Mô tả nhiệm vụ cụ thể, input từ role trước, và output mong muốn>
+```
 
 required_skills:
   - id: test-driven-development
