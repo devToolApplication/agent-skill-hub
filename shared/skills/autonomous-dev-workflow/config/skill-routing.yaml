@@ -1,0 +1,85 @@
+version: 1
+
+roles:
+  main-orchestrator:
+    workflow: orchestration/main-workflow.md
+    rules: roles/main-orchestrator.md
+    required_skills:
+      - dispatching-parallel-agents
+    conditional_skills:
+      gsd-plan-phase: phase_planning
+
+  ba-agent:
+    workflow: workflows/ba.md
+    rules: roles/ba.md
+    step_skills:
+      INTAKE: [requirement-analysis]
+      CLARIFY: [stakeholder-questioning]
+      DECOMPOSE: [requirement-analysis]
+      EDGE_CASES: [edge-case-discovery]
+      SPECIFY: [user-story-writing, acceptance-criteria, functional-specification]
+      SELF_REVIEW: [verification-before-completion]
+
+  architect-agent:
+    workflow: workflows/architect.md
+    rules: roles/architect.md
+    step_skills:
+      CURRENT_SYSTEM: [system-architecture]
+      OPTIONS: [system-architecture]
+      CONTRACTS: []
+      RISK: [technical-risk-assessment]
+      ADR: [architecture-decision-record]
+
+  dev-be-agent:
+    workflow: workflows/dev-backend.md
+    rules: roles/dev-backend.md
+    step_skills:
+      IMPLEMENT: [test-driven-development]
+      SELF_TEST: [verification-before-completion]
+      DEBUG: [systematic-debugging]
+      SELF_REVIEW: [self-code-review]
+      FINAL_VERIFY: [verification-before-completion]
+      REVIEW_REPAIR: [receiving-code-review]
+
+  dev-fe-agent:
+    workflow: workflows/dev-frontend.md
+    rules: roles/dev-frontend.md
+    step_skills:
+      IMPLEMENT: [test-driven-development]
+      SELF_TEST: [verification-before-completion]
+      DEBUG: [systematic-debugging]
+      SELF_REVIEW: [self-code-review]
+      FINAL_VERIFY: [verification-before-completion]
+      REVIEW_REPAIR: [receiving-code-review]
+
+  test-qa-agent:
+    workflow: workflows/qa.md
+    rules: roles/qa.md
+    step_skills:
+      TEST_MATRIX: [test-strategy, test-case-design]
+      SELF_REVIEW: [verification-before-completion]
+      REPORT_FAILURE: [bug-report-writing]
+
+  bpmn-agent:
+    workflow: workflows/bpmn.md
+    rules: roles/bpmn.md
+    step_skills:
+      SEMANTIC_MODEL: [bpmn-modeler]
+      BPMN_DESIGN: [bpmn-design]
+      VALIDATE: [bpmn-validator]
+      ENGINE_MAP: [bpmn-architect, bpmn-engine-mapper]
+      SELF_REVIEW: [bpmn-validator]
+
+  trade-analysis-agent:
+    workflow: workflows/trade-analysis.md
+    rules: roles/trade-analysis.md
+    step_skills:
+      REQUIREMENT: [requirement-analysis]
+      DATA_DEFINITION: [data-requirement-spec]
+      SELF_REVIEW: [technical-risk-assessment]
+
+  reviewer:
+    workflow: workflows/reviewer.md
+    rules: roles/reviewer.md
+    step_skills:
+      VERIFY: [verification-before-completion]

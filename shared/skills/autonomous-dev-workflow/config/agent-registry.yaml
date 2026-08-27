@@ -1,0 +1,45 @@
+version: 1
+
+# This registry intentionally contains no model/provider selection.
+agents:
+  main-orchestrator:
+    role_rules: roles/main-orchestrator.md
+    workflow: orchestration/main-workflow.md
+
+  ba-agent:
+    role_rules: roles/ba.md
+    workflow: workflows/ba.md
+
+  architect-agent:
+    role_rules: roles/architect.md
+    workflow: workflows/architect.md
+
+  dev-be-agent:
+    role_rules: roles/dev-backend.md
+    workflow: workflows/dev-backend.md
+    reusable_instances: true
+
+  dev-fe-agent:
+    role_rules: roles/dev-frontend.md
+    workflow: workflows/dev-frontend.md
+    reusable_instances: true
+
+  test-qa-agent:
+    role_rules: roles/qa.md
+    workflow: workflows/qa.md
+    reusable_instances: true
+
+  bpmn-agent:
+    role_rules: roles/bpmn.md
+    workflow: workflows/bpmn.md
+    reusable_instances: true
+
+  trade-analysis-agent:
+    role_rules: roles/trade-analysis.md
+    workflow: workflows/trade-analysis.md
+    reusable_instances: true
+
+  reviewer:
+    role_rules: roles/reviewer.md
+    workflow: workflows/reviewer.md
+    reusable_instances: true

@@ -1,64 +1,55 @@
-﻿# agent-skill
+# agent-skill-hub
 
-Kho lưu trữ trung tâm (Centralized Hub) chứa toàn bộ **AI Agents**, **Skills**, **Workflow Commands**, **Rules** và cấu hình **MCP Servers** cho **Claude Code** và **Codex CLI**.
+Centralized hub for **Agents**, **Skills**, **Workflow Commands**, **Rules**, plugins and MCP configuration used by Claude Code and Codex CLI.
 
-Khi chuyển máy hoặc cài đặt môi trường mới, chỉ cần clone repo này về và chạy 1 lệnh sync là có đầy đủ toàn bộ công cụ.
+## Source layout
 
----
+```text
+agent-skill-hub/
+├── shared/                  # Canonical cross-runtime content (source of truth)
+│   └── skills/
+├── claude/                  # Claude-specific agents/commands/config
+├── codex/                   # Codex-specific agents/rules/config
+├── plugins/
+├── mcp/
+└── scripts/
+    ├── sync.ps1
+    └── sync.sh
+```
 
-## 1. Cấu trúc Thư mục
+`shared/skills/*` is authoritative for skills that must behave identically on Claude and Codex. During sync, platform-specific files are copied first and shared skills are then installed cleanly into both runtimes, replacing any stale local copy of the same skill.
 
-`	ext
-agent-skill/
-├── claude/                  # Toàn bộ cấu hình dành cho Claude Code (~/.claude)
-│   ├── agents/              # Custom Claude Agents frontmatter (.md)
-│   ├── skills/              # Claude Code Skills
-│   ├── commands/            # Slash Commands
-│   └── CLAUDE.md            # Global User Instructions
-├── codex/                   # Toàn bộ cấu hình dành cho Codex CLI (~/.codex)
-│   ├── agents/              # Codex Custom Agents
-│   ├── skills/              # Codex Skills
-│   ├── rules/               # Codex Engineering Rules
-│   └── AGENTS.md            # Codex Global Instructions
-├── mcp/                     # Cấu hình MCP Servers kết nối Obot & Local
-│   └── .mcp.json            # Template MCP config chuẩn
-└── scripts/                 # Scripts tự động đồng bộ
-    ├── sync.ps1             # Đồng bộ cho Windows PowerShell
-    └── sync.sh              # Đồng bộ cho Linux / macOS / Bash
-`
+## Sync
 
----
+Windows:
 
-## 2. Hướng dẫn Sử dụng & Đồng bộ
-
-### Bước 1: Clone Repository về máy
-`ash
-git clone https://github.com/lamld01/agent-skill.git
-cd agent-skill
-`
-
-### Bước 2: Chạy lệnh Đồng bộ
-
-#### Trên Windows (PowerShell):
-`powershell
+```powershell
 .\scripts\sync.ps1
-`
+```
 
-#### Trên Linux / macOS / Git Bash:
-`ash
+Linux/macOS/Git Bash:
+
+```bash
 chmod +x scripts/sync.sh
 ./scripts/sync.sh
-`
+```
 
----
+Targets:
 
-## 3. Cách thêm mới / cập nhật Agent hoặc Skill
+- Claude: `~/.claude`
+- Codex: `~/.codex`
 
-1. Thêm hoặc chỉnh sửa Agent/Skill trong thư mục claude/ hoặc codex/ tương ứng.
-2. Commit và push lên GitHub:
-   `ash
-   git add .
-   git commit -m "feat: add new trading analysis skill"
-   git push origin main
-   `
-3. Ở máy khác chỉ cần git pull và chạy lại sync.ps1 hoặc sync.sh.
+## Autonomous development workflow
+
+The canonical workflow is `shared/skills/autonomous-dev-workflow`.
+
+Key rules:
+
+- Main orchestrates and dispatches **agents only**. Workflow/task definitions MUST NOT select a model, provider or model tier.
+- Planning produces an execution DAG and actively splits independent work for parallel agent execution.
+- Multiple instances of the same agent may run concurrently when dependencies are satisfied and write ownership does not overlap.
+- Every implementation agent performs self-test, self-code-review and final verification before handoff.
+- Self-review never replaces independent review.
+- Role rules, role workflows, orchestration rules and task/result contracts are separate artifacts.
+
+To change cross-runtime workflow behavior, edit `shared/skills/...` once, commit, pull on another machine and run the sync script.

@@ -1,0 +1,58 @@
+version: 1
+
+dispatch:
+  target: agent
+  agent_only: true
+  forbidden_assignment_fields:
+    - model
+    - model_tier
+    - provider
+    - runtime_model
+  allow_multiple_instances_per_agent: true
+
+planning:
+  require_execution_dag: true
+  parallel_first: true
+  split_independent_work: true
+  split_same_role_work: true
+  require_contract_first_for_cross_role_work: true
+  require_write_ownership: true
+  dependencies:
+    design_dependencies: blocks_start
+    runtime_dependencies: blocks_runtime_verification_only
+    write_conflicts: blocks_concurrent_write
+
+scheduler:
+  mode: dynamic
+  rolling_dispatch: true
+  strategy: critical_path_first
+  max_parallel_agents: 8
+  default_per_agent_limit: 3
+  per_agent_limits:
+    dev-be-agent: 4
+    dev-fe-agent: 3
+    test-qa-agent: 2
+    architect-agent: 2
+    ba-agent: 2
+    bpmn-agent: 2
+    trade-analysis-agent: 2
+  acquire_write_lock_before_spawn: true
+  release_write_lock_after_task_terminal_state: true
+
+implementation_gate:
+  required_steps:
+    - SELF_TEST
+    - SELF_REVIEW
+    - FINAL_VERIFY
+  self_review_replaces_independent_review: false
+  code_change_invalidates_affected_evidence: true
+
+review:
+  rolling_review: true
+  independent: true
+  blocker_or_high_fails_gate: true
+
+integration:
+  prefer_dedicated_fan_in_task_for_shared_files: true
+  shared_file_writes_by_parallel_workers: false
+  require_integration_verification: true

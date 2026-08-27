@@ -1,0 +1,57 @@
+feature_id: KOC-APPROVAL
+phase_id: PHASE-02
+
+contracts:
+  - id: API-CONTRACT-01
+    owner_agent: architect-agent
+
+nodes:
+  - id: BE-QUERY-01
+    agent: dev-be-agent
+    design_dependencies: [API-CONTRACT-01]
+    runtime_dependencies: []
+    ownership:
+      write_paths: [backend/koc/query/**]
+    reviewers: [code, api]
+
+  - id: BE-COMMAND-01
+    agent: dev-be-agent
+    design_dependencies: [API-CONTRACT-01]
+    runtime_dependencies: []
+    ownership:
+      write_paths: [backend/koc/command/**]
+    reviewers: [code, api]
+
+  - id: FE-LIST-01
+    agent: dev-fe-agent
+    design_dependencies: [API-CONTRACT-01]
+    runtime_dependencies: [BE-QUERY-01]
+    ownership:
+      write_paths: [frontend/koc/list/**]
+    reviewers: [code, uiux]
+
+  - id: FE-DETAIL-01
+    agent: dev-fe-agent
+    design_dependencies: [API-CONTRACT-01]
+    runtime_dependencies: [BE-QUERY-01, BE-COMMAND-01]
+    ownership:
+      write_paths: [frontend/koc/detail/**]
+    reviewers: [code, uiux]
+
+  - id: QA-PREP-01
+    agent: test-qa-agent
+    design_dependencies: [API-CONTRACT-01]
+    runtime_dependencies: [BE-QUERY-01, BE-COMMAND-01, FE-LIST-01, FE-DETAIL-01]
+    ownership:
+      write_paths: [tests/koc-approval/**]
+
+  - id: INTEGRATION-01
+    agent: dev-be-agent
+    design_dependencies: [BE-QUERY-01, BE-COMMAND-01]
+    runtime_dependencies: []
+    ownership:
+      write_paths: [backend/shared-registration/**]
+
+# BE-QUERY-01, BE-COMMAND-01, FE-LIST-01, FE-DETAIL-01 and QA-PREP-01 may all start
+# after API-CONTRACT-01 when their design inputs and write locks are ready. runtime_dependencies
+# only delay the verification step that needs the running dependency.
