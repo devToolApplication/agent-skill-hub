@@ -49,14 +49,24 @@ if (Test-Path "$rootDir\plugins\superpowers") {
 }
 
 if (Test-Path "$rootDir\plugins\gsd") {
-    Write-Host "[4/5] Syncing GSD engine and profiles..." -ForegroundColor Yellow
-    foreach ($target in @($claudeUserDir, $codexUserDir)) {
-        New-Item -ItemType Directory -Force $target | Out-Null
-        if (Test-Path "$rootDir\plugins\gsd\get-shit-done") { Copy-Item "$rootDir\plugins\gsd\get-shit-done" $target -Recurse -Force }
-        if (Test-Path "$rootDir\plugins\gsd\gsd-migration-journal") { Copy-Item "$rootDir\plugins\gsd\gsd-migration-journal" $target -Recurse -Force }
-        foreach ($file in @(".gsd-profile", "gsd-file-manifest.json", "gsd-install-state.json")) {
-            $source = "$rootDir\plugins\gsd\$file"
-            if (Test-Path $source) { Copy-Item $source (Join-Path $target $file) -Force }
+    Write-Host "[4/5] Installing GSD from npm..." -ForegroundColor Yellow
+    try {
+        # GSD_ALLOW_SYMLINKED_DEST=1 trusts user-owned Junction/symlink layouts (e.g. D:\AI\agent-skills)
+        $env:GSD_ALLOW_SYMLINKED_DEST = "1"
+        npx --yes @opengsd/gsd-core@latest --claude --global
+        npx --yes @opengsd/gsd-core@latest --codex --global
+        Remove-Item Env:GSD_ALLOW_SYMLINKED_DEST -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Warning "GSD npm install failed; falling back to bundled snapshot. $($_.Exception.Message)"
+        foreach ($target in @($claudeUserDir, $codexUserDir)) {
+            New-Item -ItemType Directory -Force $target | Out-Null
+            if (Test-Path "$rootDir\plugins\gsd\get-shit-done") { Copy-Item "$rootDir\plugins\gsd\get-shit-done" $target -Recurse -Force }
+            if (Test-Path "$rootDir\plugins\gsd\gsd-migration-journal") { Copy-Item "$rootDir\plugins\gsd\gsd-migration-journal" $target -Recurse -Force }
+            foreach ($file in @(".gsd-profile", "gsd-file-manifest.json", "gsd-install-state.json")) {
+                $source = "$rootDir\plugins\gsd\$file"
+                if (Test-Path $source) { Copy-Item $source (Join-Path $target $file) -Force }
+            }
         }
     }
 }
