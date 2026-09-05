@@ -86,6 +86,18 @@ digraph process {
 }
 ```
 
+## Dedicated Agent Dispatch
+
+Khi spawn subagent để thực thi plan hoặc task, BẮT BUỘC map vào các dedicated subagents có sẵn theo vai trò (được cấu hình tại `~/.codex/agents/`), không tạo agent tự do:
+
+- Task BA / Spec / Phân tích yêu cầu -> `ba-agent`
+- Task Thiết kế kiến trúc / Module / API Contract / Trade-off -> `architect-agent`
+- Task Implement Backend / APIs / Services / DB -> `dev-be-agent`
+- Task Implement Frontend / UI / Components -> `dev-fe-agent`
+- Task QA / Test Matrix / Local Live Test / E2E -> `test-qa-agent`
+- Task BPMN Workflow -> `bpmn-agent`
+- Task Trading / Rule Strategy -> `trade-analysis-agent`
+
 ## Model Selection
 
 Use the least powerful model that can handle each role to conserve cost and increase speed.

@@ -65,12 +65,14 @@ Each agent gets:
 
 ### 3. Dispatch in Parallel
 
+Khi dispatch các parallel subagents, BẮT BUỘC sử dụng các dedicated subagents có sẵn trong `~/.codex/agents/` (`ba-agent`, `architect-agent`, `dev-be-agent`, `dev-fe-agent`, `test-qa-agent`, `bpmn-agent`, `trade-analysis-agent`):
+
 ```typescript
-// In Claude Code / AI environment
-Task("Fix agent-tool-abort.test.ts failures")
-Task("Fix batch-completion-behavior.test.ts failures")
-Task("Fix tool-approval-race-conditions.test.ts failures")
-// All three run concurrently
+// Chỉ định dedicated agent tương ứng với domain của task
+Task("dev-be-agent", "Fix batch-completion-behavior.test.ts failures")
+Task("dev-be-agent", "Fix tool-approval-race-conditions.test.ts failures")
+Task("test-qa-agent", "Prepare live test cases for batch completion")
+// All run concurrently using predefined agent definitions
 ```
 
 ### 4. Review and Integrate

@@ -22,6 +22,7 @@ The plan MUST:
 - declare `agent`, never a model;
 - record design/runtime dependencies and write conflicts separately;
 - split BE/FE/QA-preparation work that can run from a stable contract;
+- spawn `test-qa-agent` in parallel with dev/implementation tasks to establish the comprehensive test case matrix and test data;
 - split large same-role work into independent ownership scopes;
 - identify shared files and move those writes into a later integration/fan-in task when practical;
 - identify independent reviewers per task.
@@ -37,7 +38,7 @@ Repeat until all required nodes are terminal:
 3. Exclude tasks blocked by write conflict or agent concurrency capacity.
 4. Prioritize critical-path/unblocker tasks.
 5. Acquire ownership/write locks.
-6. Spawn all safe READY tasks concurrently using their configured `agent`.
+6. Spawn all safe READY tasks concurrently using their configured `agent` (including parallel `test-qa-agent` test preparation).
 7. Collect completed results continuously.
 8. Start rolling independent review as soon as a task self-gate passes.
 9. On review failure, route feedback to the original implementation role and require its repair workflow.
@@ -52,12 +53,13 @@ After dependent implementation nodes pass:
 - run affected build/integration/contract checks;
 - re-review integration-only changes when material.
 
-## 6. QA / E2E / PHASE GATE
+## 6. QA / LOCAL LIVE TEST / PRE-CD GATE
 
-- Execute integration and E2E tests after runtime dependencies are available.
-- Independent phase review checks traceability, integration and unresolved findings.
+- Execute integration, E2E and mandatory **Local Live Tests** (spin up local BE/FE services, simulate end-to-end user actions from FE and verify zero BE log errors).
+- Local Gate Check: All local tests and live user-flow checks must PASS 100% before allowing push to CD/deployment pipelines.
+- Independent phase review checks traceability, integration, live logs and unresolved findings.
 - BLOCKER/HIGH findings fail the gate.
 
 ## 7. FINAL GATE
 
-Feature is complete only when requirements, implementation nodes, independent reviews, integration verification, QA/E2E and required documentation are PASS with current evidence.
+Feature is complete only when requirements, implementation nodes, independent reviews, integration verification, local live E2E test (clean BE logs) and pre-CD gate certification are PASS with current evidence.

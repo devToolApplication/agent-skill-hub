@@ -62,3 +62,17 @@ Agent definitions are capabilities, not singletons. Main may spawn multiple conc
 `explicit user requirement > locked product/AI spec > approved architecture/ADR > project engineering rules > phase/task plan > repository convention > generic best practice > reviewer preference`.
 
 On conflict, stop the affected task and route to the owner of the higher-level decision instead of silently choosing.
+
+## Agent - Skill & Capability Matrix
+
+| Dedicated Agent | Primary Role | Core Step Skills | Conditional / Specialist Skills |
+|---|---|---|---|
+| `ba-agent` | Business Analyst | `requirement-analysis`, `stakeholder-questioning`, `edge-case-discovery`, `user-story-writing`, `acceptance-criteria`, `functional-specification`, `verification-before-completion` | `data-requirement-spec`, `ui-ux-design` |
+| `architect-agent` | Solution / System Architect | `system-architecture`, `api-contract-design`, `technical-risk-assessment`, `architecture-decision-record`, `migration-planning` | `microservice-design`, `event-driven-architecture`, `data-architecture`, `security-architecture`, `observability-design`, `scalability-design`, `integration-patterns` |
+| `dev-be-agent` | Backend Engineer | `test-driven-development`, `systematic-debugging`, `self-code-review`, `receiving-code-review`, `verification-before-completion` | `api-contract-design`, `integration-patterns`, `database-optimization` |
+| `dev-fe-agent` | Frontend Engineer | `test-driven-development`, `systematic-debugging`, `self-code-review`, `receiving-code-review`, `verification-before-completion` | `ui-ux-design`, `design-tokens`, `responsive-layout`, `css-architecture`, `web-performance` |
+| `test-qa-agent` | QA / Test Engineer | `test-strategy`, `test-case-design`, `playwright-e2e-testing`, `api-testing`, `integration-testing`, `regression-testing`, `bug-report-writing`, `test-data-management`, `verification-before-completion` | `ui-ux-testing`, `accessibility-testing`, `performance-testing`, `security-testing` |
+| `bpmn-agent` | BPMN Process Specialist | `bpmn-modeler`, `bpmn-design`, `bpmn-validator`, `bpmn-architect`, `bpmn-engine-mapper` | `workflow-orchestration`, `process-optimization` |
+| `trade-analysis-agent` | Trading / Rule Specialist | `requirement-analysis`, `data-requirement-spec`, `technical-risk-assessment`, `trading-strategy-analysis` | `backtest-evaluation`, `risk-engine-design` |
+| `reviewer` | Independent Code/Spec Reviewer | `code-review-standards`, `verification-before-completion` | `security-audit`, `performance-audit` |
+
