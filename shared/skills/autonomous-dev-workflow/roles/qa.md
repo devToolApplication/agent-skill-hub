@@ -1,4 +1,4 @@
-# QA Role Rules
+# QA Agent Rules
 
 Stable IDs: `QA-TRACE-*`, `QA-EDGE-*`, `QA-INDEP-*`, `QA-DATA-*`, `QA-LIVE-*`, `QA-GATE-*`.
 

@@ -1,4 +1,4 @@
-# Backend Developer Role Rules
+# Backend Developer Agent Rules
 
 Stable IDs: `BE-LAYER-*`, `BE-API-*`, `BE-DATA-*`, `BE-ERR-*`, `BE-LOG-*`, `BE-TEST-*`, `BE-DESIGN-*`, `BE-CLEAN-*`.
 

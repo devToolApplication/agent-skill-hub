@@ -1,4 +1,4 @@
-# BA Role Rules
+# BA Agent Rules
 
 Stable IDs: `BA-REQ-*`, `BA-SCOPE-*`, `BA-AC-*`.
 

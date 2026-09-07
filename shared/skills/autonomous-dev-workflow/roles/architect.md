@@ -1,4 +1,4 @@
-# Architect Role Rules
+# Architect Agent Rules
 
 Stable IDs: `ARCH-BOUNDARY-*`, `ARCH-CONTRACT-*`, `ARCH-OPTIONS-*`, `ARCH-TRADEOFF-*`, `ARCH-MODULE-STRUCT-*`, `ARCH-ADR-*`.
 

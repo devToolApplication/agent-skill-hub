@@ -1,4 +1,4 @@
-# Frontend Developer Role Rules
+# Frontend Developer Agent Rules
 
 Stable IDs: `FE-BOUNDARY-*`, `FE-I18N-*`, `FE-THEME-*`, `FE-STATE-*`, `FE-A11Y-*`, `FE-TEST-*`.
 
